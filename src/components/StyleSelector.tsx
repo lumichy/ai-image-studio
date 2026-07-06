@@ -5,16 +5,21 @@ import { STYLE_PRESETS } from '@/lib/constants';
 interface StyleSelectorProps {
   selected: string;
   onChange: (id: string) => void;
+  showKeepOriginal?: boolean;
 }
 
-export default function StyleSelector({ selected, onChange }: StyleSelectorProps) {
+export default function StyleSelector({ selected, onChange, showKeepOriginal }: StyleSelectorProps) {
+  const styles = showKeepOriginal
+    ? STYLE_PRESETS
+    : STYLE_PRESETS.filter((s) => s.id !== 'none');
+
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         风格
       </label>
       <div className="grid grid-cols-3 gap-2">
-        {STYLE_PRESETS.map((style) => (
+        {styles.map((style) => (
           <button
             key={style.id}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

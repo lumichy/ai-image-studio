@@ -1,6 +1,7 @@
 import { StylePreset, SizeOption } from '@/types';
 
 export const STYLE_PRESETS: StylePreset[] = [
+  { id: 'none', label: '保持原状', promptSuffix: '' },
   { id: 'anime', label: '动漫', promptSuffix: 'anime style, vibrant colors, detailed illustration' },
   { id: 'realistic', label: '写实', promptSuffix: 'photorealistic, high detail, 8k' },
   { id: 'oil-painting', label: '油画', promptSuffix: 'oil painting, thick brush strokes, canvas texture' },
@@ -10,6 +11,7 @@ export const STYLE_PRESETS: StylePreset[] = [
 ];
 
 export const SIZE_OPTIONS: SizeOption[] = [
+  { id: 'none', label: '原状', ratio: '保持', dimensions: '' },
   { id: 'square', label: '1:1', ratio: '方形', dimensions: '1024x1024' },
   { id: 'landscape', label: '16:9', ratio: '横版', dimensions: '1024x576' },
   { id: 'portrait', label: '9:16', ratio: '竖版', dimensions: '576x1024' },
@@ -18,11 +20,12 @@ export const SIZE_OPTIONS: SizeOption[] = [
 
 export function buildPrompt(userPrompt: string, styleId: string): string {
   const style = STYLE_PRESETS.find((s) => s.id === styleId);
-  if (!style) return userPrompt;
+  if (!style || !style.promptSuffix) return userPrompt;
   return `${userPrompt}, ${style.promptSuffix}`;
 }
 
-export function getDimensions(sizeId: string): string {
+export function getDimensions(sizeId: string): string | null {
   const size = SIZE_OPTIONS.find((s) => s.id === sizeId);
-  return size?.dimensions ?? '1024x1024';
+  if (!size || !size.dimensions) return null;
+  return size.dimensions;
 }

@@ -5,16 +5,21 @@ import { SIZE_OPTIONS } from '@/lib/constants';
 interface SizeSelectorProps {
   selected: string;
   onChange: (id: string) => void;
+  showKeepOriginal?: boolean;
 }
 
-export default function SizeSelector({ selected, onChange }: SizeSelectorProps) {
+export default function SizeSelector({ selected, onChange, showKeepOriginal }: SizeSelectorProps) {
+  const sizes = showKeepOriginal
+    ? SIZE_OPTIONS
+    : SIZE_OPTIONS.filter((s) => s.id !== 'none');
+
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         尺寸
       </label>
       <div className="grid grid-cols-4 gap-2">
-        {SIZE_OPTIONS.map((size) => (
+        {sizes.map((size) => (
           <button
             key={size.id}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

@@ -6,5 +6,5 @@
 - Task 3: Agnes API Client - COMPLETE (commit bd01f69)
 - Task 4: API Routes - COMPLETE (commit e54a27a)
 - Task 5: UI Components - COMPLETE (commit 5fa523f)
-- Task 6: Main Page Integration - IN PROGRESS (subagent dispatched)
-- Task 7: End-to-End Verification - PENDING
+- Task 6: Main Page Integration - COMPLETE (commit b33e264)
+- Task 7: End-to-End Verification - BLOCKED (needs real API key)

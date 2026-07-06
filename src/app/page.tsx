@@ -20,6 +20,19 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const handleModeChange = (newMode: GenerateMode) => {
+    setMode(newMode);
+    if (newMode === 'image-to-image') {
+      setStyle('none');
+      setSize('none');
+    } else {
+      if (style === 'none') setStyle('anime');
+      if (size === 'none') setSize('square');
+    }
+  };
+
+  const isImageMode = mode === 'image-to-image';
+
   const handleGenerate = async () => {
     setLoading(true);
     setError(null);
@@ -65,7 +78,7 @@ export default function Home() {
       <h1 className="text-3xl font-bold text-center mb-2">AI 生图工作室</h1>
       <p className="text-center text-gray-400 text-sm mb-8">Powered by Agnes AI</p>
 
-      <ModeSwitch mode={mode} onChange={setMode} />
+      <ModeSwitch mode={mode} onChange={handleModeChange} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 左侧：参数面板 */}
@@ -76,8 +89,8 @@ export default function Home() {
             <ImageUpload onUpload={setReferenceImage} />
           )}
 
-          <StyleSelector selected={style} onChange={setStyle} />
-          <SizeSelector selected={size} onChange={setSize} />
+          <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
+          <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
 
           <GenerateButton
             onClick={handleGenerate}

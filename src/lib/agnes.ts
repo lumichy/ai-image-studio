@@ -11,18 +11,20 @@ export async function generateTextToImage(
   const fullPrompt = buildPrompt(prompt, styleId);
   const size = getDimensions(sizeId);
 
+  const body: Record<string, unknown> = {
+    model: 'agnes-image-2.1-flash',
+    prompt: fullPrompt,
+    extra_body: { response_format: 'url' },
+  };
+  if (size) body.size = size;
+
   const response = await fetch(`${API_BASE_URL}/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${API_KEY}`,
     },
-    body: JSON.stringify({
-      model: 'agnes-image-2.1-flash',
-      prompt: fullPrompt,
-      size,
-      extra_body: { response_format: 'url' },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -47,21 +49,23 @@ export async function generateImageToImage(
   const imageUrl = await uploadImageToTempHost(referenceImage);
 
   // Agnes API: image-to-image uses /images/generations with extra_body.image array
+  const body: Record<string, unknown> = {
+    model: 'agnes-image-2.1-flash',
+    prompt: fullPrompt,
+    extra_body: {
+      response_format: 'url',
+      image: [imageUrl],
+    },
+  };
+  if (size) body.size = size;
+
   const response = await fetch(`${API_BASE_URL}/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${API_KEY}`,
     },
-    body: JSON.stringify({
-      model: 'agnes-image-2.1-flash',
-      prompt: fullPrompt,
-      size,
-      extra_body: {
-        response_format: 'url',
-        image: [imageUrl],
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

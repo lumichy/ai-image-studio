@@ -8,28 +8,27 @@ interface ModeSwitchProps {
 }
 
 export default function ModeSwitch({ mode, onChange }: ModeSwitchProps) {
+  const modes: { id: GenerateMode; label: string }[] = [
+    { id: 'text-to-image', label: '文生图' },
+    { id: 'image-to-image', label: '图生图' },
+    { id: 'infographic', label: '信息图' },
+  ];
+
   return (
     <div className="flex gap-2 mb-6">
-      <button
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          mode === 'text-to-image'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-white text-gray-600 hover:bg-gray-100'
-        }`}
-        onClick={() => onChange('text-to-image')}
-      >
-        文生图
-      </button>
-      <button
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          mode === 'image-to-image'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-white text-gray-600 hover:bg-gray-100'
-        }`}
-        onClick={() => onChange('image-to-image')}
-      >
-        图生图
-      </button>
+      {modes.map((m) => (
+        <button
+          key={m.id}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            mode === m.id
+              ? 'bg-indigo-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-100'
+          }`}
+          onClick={() => onChange(m.id)}
+        >
+          {m.label}
+        </button>
+      ))}
     </div>
   );
 }

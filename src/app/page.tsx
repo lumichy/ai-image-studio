@@ -8,6 +8,9 @@ import SizeSelector from '@/components/SizeSelector';
 import ImageUpload from '@/components/ImageUpload';
 import ResultDisplay from '@/components/ResultDisplay';
 import GenerateButton from '@/components/GenerateButton';
+import LayoutSelector from '@/components/LayoutSelector';
+import InfoStyleSelector from '@/components/InfoStyleSelector';
+import AspectRatioSelector from '@/components/AspectRatioSelector';
 import { GenerateMode } from '@/types';
 
 export default function Home() {
@@ -20,18 +23,21 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Infographic state
+  const [infoLayout, setInfoLayout] = useState('bento-grid');
+  const [infoStyle, setInfoStyle] = useState('craft-handmade');
+  const [infoAspect, setInfoAspect] = useState('landscape');
+
   const handleModeChange = (newMode: GenerateMode) => {
     setMode(newMode);
     if (newMode === 'image-to-image') {
       setStyle('none');
       setSize('none');
-    } else {
+    } else if (newMode === 'text-to-image') {
       if (style === 'none') setStyle('anime');
       if (size === 'none') setSize('square');
     }
   };
-
-  const isImageMode = mode === 'image-to-image';
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -39,15 +45,19 @@ export default function Home() {
     setImageUrl(null);
 
     try {
-      const endpoint =
-        mode === 'text-to-image'
-          ? '/api/generate/text-to-image'
-          : '/api/generate/image-to-image';
+      let endpoint: string;
+      let body: Record<string, unknown>;
 
-      const body =
-        mode === 'text-to-image'
-          ? { prompt, style, size }
-          : { prompt, referenceImage, style, size };
+      if (mode === 'text-to-image') {
+        endpoint = '/api/generate/text-to-image';
+        body = { prompt, style, size };
+      } else if (mode === 'image-to-image') {
+        endpoint = '/api/generate/image-to-image';
+        body = { prompt, referenceImage, style, size };
+      } else {
+        endpoint = '/api/generate/infographic';
+        body = { prompt, layout: infoLayout, style: infoStyle, aspect: infoAspect };
+      }
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -71,7 +81,12 @@ export default function Home() {
 
   const canGenerate =
     prompt.trim().length > 0 &&
-    (mode === 'text-to-image' || referenceImage.length > 0);
+    (mode === 'text-to-image' ||
+      mode === 'infographic' ||
+      (mode === 'image-to-image' && referenceImage.length > 0));
+
+  const isImageMode = mode === 'image-to-image';
+  const isInfographicMode = mode === 'infographic';
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-6xl">
@@ -85,12 +100,22 @@ export default function Home() {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <PromptInput value={prompt} onChange={setPrompt} />
 
-          {mode === 'image-to-image' && (
+          {isImageMode && (
             <ImageUpload onUpload={setReferenceImage} />
           )}
 
-          <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
-          <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
+          {isInfographicMode ? (
+            <>
+              <LayoutSelector selected={infoLayout} onChange={setInfoLayout} />
+              <InfoStyleSelector selected={infoStyle} onChange={setInfoStyle} />
+              <AspectRatioSelector selected={infoAspect} onChange={setInfoAspect} />
+            </>
+          ) : (
+            <>
+              <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
+              <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
+            </>
+          )}
 
           <GenerateButton
             onClick={handleGenerate}

@@ -79,6 +79,112 @@ export async function generateImageToImage(
   return data.data[0].url;
 }
 
+// ─── Infographic ───────────────────────────────────────────────────────────────
+
+const ASPECT_DIMENSIONS: Record<string, string> = {
+  landscape: '1024x576',
+  portrait: '576x1024',
+  square: '1024x1024',
+};
+
+const LAYOUT_LABELS: Record<string, string> = {
+  'bento-grid': 'Bento Grid (multiple topics overview)',
+  'linear-progression': 'Linear Progression (timeline/process)',
+  'binary-comparison': 'Binary Comparison (A vs B)',
+  'comparison-matrix': 'Comparison Matrix (multi-factor)',
+  'hierarchical-layers': 'Hierarchical Layers (pyramid/priority)',
+  'tree-branching': 'Tree Branching (categories/taxonomy)',
+  'hub-spoke': 'Hub and Spoke (central concept + related)',
+  'structural-breakdown': 'Structural Breakdown (exploded view)',
+  'iceberg': 'Iceberg Model (surface vs hidden)',
+  'bridge': 'Bridge (problem-solution)',
+  'funnel': 'Funnel (conversion/filtering)',
+  'isometric-map': 'Isometric Map (spatial relationships)',
+  'dashboard': 'Dashboard (metrics/KPIs)',
+  'periodic-table': 'Periodic Table (categorized collection)',
+  'comic-strip': 'Comic Strip (narrative sequence)',
+  'story-mountain': 'Story Mountain (plot/tension arc)',
+  'jigsaw': 'Jigsaw (interconnected parts)',
+  'venn-diagram': 'Venn Diagram (overlapping concepts)',
+  'winding-roadmap': 'Winding Roadmap (journey/milestones)',
+  'circular-flow': 'Circular Flow (cycles/recurring processes)',
+  'dense-modules': 'Dense Modules (high-density data-rich guide)',
+};
+
+const STYLE_LABELS: Record<string, string> = {
+  'craft-handmade': 'hand-drawn paper craft style with visible textures, cut-paper collage aesthetic',
+  'claymation': '3D claymation style with visible fingerprints and stop-motion aesthetic',
+  'kawaii': 'Japanese kawaii style with pastel colors and cute simplified shapes',
+  'storybook-watercolor': 'soft watercolor painting style with whimsical storybook feel',
+  'chalkboard': 'chalkboard style with white and colored chalk on dark matte blackboard',
+  'cyberpunk-neon': 'cyberpunk neon style with glowing lights and futuristic dark atmosphere',
+  'bold-graphic': 'bold comic book graphic style with halftone dots and thick outlines',
+  'aged-academia': 'vintage academic style with sepia tones and aged scientific journal feel',
+  'corporate-memphis': 'corporate Memphis style with flat vector shapes and vibrant colors',
+  'technical-schematic': 'technical schematic blueprint style with grid lines and engineering precision',
+  'origami': 'origami style with folded paper geometry and clean creased surfaces',
+  'pixel-art': 'retro 8-bit pixel art style with limited color palette',
+  'ui-wireframe': 'UI wireframe style with grayscale boxes and placeholder elements',
+  'ikea-manual': 'IKEA manual style with minimal line art and simple pictograms',
+  'knolling': 'knolling style with objects organized in neat flat-lay from above',
+  'lego-brick': 'LEGO brick style with toy brick construction aesthetic',
+  'pop-laboratory': 'pop laboratory style with blueprint grid, coordinate markers, and lab precision',
+  'morandi-journal': 'hand-drawn doodle journal style with warm Morandi color tones',
+  'retro-pop-grid': '1970s retro pop art style with Swiss grid layout and thick outlines',
+  'hand-drawn-edu': 'hand-drawn educational style with macaron pastels and wobbly lines',
+  'retro-popup-pop': 'retro popup collage style with vintage UI and thick outlines on flat pop colors',
+};
+
+export async function generateInfographic(
+  prompt: string,
+  layoutId: string,
+  styleId: string,
+  aspectId: string,
+): Promise<string> {
+  const layoutDesc = LAYOUT_LABELS[layoutId] ?? layoutId;
+  const styleDesc = STYLE_LABELS[styleId] ?? styleId;
+  const dimensions = ASPECT_DIMENSIONS[aspectId] ?? '1024x576';
+
+  const fullPrompt = [
+    `Create a professional infographic about: ${prompt}`,
+    '',
+    `Layout: ${layoutDesc}`,
+    `Visual Style: ${styleDesc}`,
+    '',
+    'Requirements:',
+    '- Professional infographic with clear visual hierarchy',
+    '- All text must be clear and readable',
+    '- Use ample whitespace for visual clarity',
+    '- Highlight key concepts and keywords visually',
+    '- Maintain consistent style throughout',
+    '- All text labels in the same language as the prompt',
+  ].join('\n');
+
+  const body: Record<string, unknown> = {
+    model: 'agnes-image-2.1-flash',
+    prompt: fullPrompt,
+    size: dimensions,
+    extra_body: { response_format: 'url' },
+  };
+
+  const response = await fetch(`${API_BASE_URL}/images/generations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Agnes API error: ${response.status} ${error}`);
+  }
+
+  const data = await response.json();
+  return data.data[0].url;
+}
+
 /**
  * Upload a base64 image to a temporary host and return the public URL.
  * Tries uguu.se first (Agnes can reliably fetch it), then tmpfiles.org as fallback.

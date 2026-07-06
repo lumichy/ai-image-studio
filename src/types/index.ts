@@ -1,4 +1,4 @@
-export type GenerateMode = 'text-to-image' | 'image-to-image';
+export type GenerateMode = 'text-to-image' | 'image-to-image' | 'infographic';
 
 export interface StylePreset {
   id: string;
@@ -24,6 +24,13 @@ export interface ImageToImageRequest {
   referenceImage: string;
   style: string;
   size: string;
+}
+
+export interface InfographicRequest {
+  prompt: string;
+  layout: string;
+  style: string;
+  aspect: string;
 }
 
 export interface GenerateResponse {

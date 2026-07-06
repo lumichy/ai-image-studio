@@ -3,9 +3,10 @@
 interface ResultDisplayProps {
   imageUrl: string | null;
   error: string | null;
+  prompt?: string;
 }
 
-export default function ResultDisplay({ imageUrl, error }: ResultDisplayProps) {
+export default function ResultDisplay({ imageUrl, error, prompt }: ResultDisplayProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       {error ? (
@@ -14,7 +15,13 @@ export default function ResultDisplay({ imageUrl, error }: ResultDisplayProps) {
           <p className="text-sm mt-1">{error}</p>
         </div>
       ) : imageUrl ? (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 w-full">
+          {prompt && (
+            <div className="w-full bg-gray-50 rounded-lg p-3 text-sm text-gray-600 max-h-32 overflow-y-auto">
+              <span className="font-medium text-gray-700">提示词：</span>
+              <span className="ml-1">{prompt}</span>
+            </div>
+          )}
           <img
             src={imageUrl}
             alt="生成结果"

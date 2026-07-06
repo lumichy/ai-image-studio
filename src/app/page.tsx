@@ -22,6 +22,7 @@ export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [displayPrompt, setDisplayPrompt] = useState('');
 
   // Infographic state
   const [infoLayout, setInfoLayout] = useState('bento-grid');
@@ -51,12 +52,15 @@ export default function Home() {
       if (mode === 'text-to-image') {
         endpoint = '/api/generate/text-to-image';
         body = { prompt, style, size };
+        setDisplayPrompt(prompt);
       } else if (mode === 'image-to-image') {
         endpoint = '/api/generate/image-to-image';
         body = { prompt, referenceImage, style, size };
+        setDisplayPrompt(prompt);
       } else {
         endpoint = '/api/generate/infographic';
         body = { prompt, layout: infoLayout, style: infoStyle, aspect: infoAspect };
+        setDisplayPrompt(`${prompt} [布局: ${infoLayout} | 风格: ${infoStyle} | 比例: ${infoAspect}]`);
       }
 
       const res = await fetch(endpoint, {
@@ -126,7 +130,7 @@ export default function Home() {
 
         {/* 右侧：结果区 */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <ResultDisplay imageUrl={imageUrl} error={error} />
+          <ResultDisplay imageUrl={imageUrl} error={error} prompt={displayPrompt} />
         </div>
       </div>
     </main>

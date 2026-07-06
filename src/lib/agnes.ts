@@ -21,6 +21,7 @@ export async function generateTextToImage(
       model: 'agnes-image-2.1-flash',
       prompt: fullPrompt,
       size,
+      extra_body: { response_format: 'url' },
     }),
   });
 
@@ -42,22 +43,25 @@ export async function generateImageToImage(
   const fullPrompt = buildPrompt(prompt, styleId);
   const size = getDimensions(sizeId);
 
-  const formData = new FormData();
-  formData.append('model', 'agnes-image-2.0-flash');
-  formData.append('prompt', fullPrompt);
-  formData.append('size', size);
+  // Upload the base64 image to a temp host to get a public URL
+  const imageUrl = await uploadImageToTempHost(referenceImage);
 
-  // Convert base64 to blob
-  const base64Data = referenceImage.split(',')[1] ?? referenceImage;
-  const blob = base64ToBlob(base64Data, 'image/png');
-  formData.append('image', blob, 'reference.png');
-
-  const response = await fetch(`${API_BASE_URL}/images/edits`, {
+  // Agnes API: image-to-image uses /images/generations with extra_body.image array
+  const response = await fetch(`${API_BASE_URL}/images/generations`, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${API_KEY}`,
     },
-    body: formData,
+    body: JSON.stringify({
+      model: 'agnes-image-2.1-flash',
+      prompt: fullPrompt,
+      size,
+      extra_body: {
+        response_format: 'url',
+        image: [imageUrl],
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -69,7 +73,28 @@ export async function generateImageToImage(
   return data.data[0].url;
 }
 
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  const bytes = Buffer.from(base64, 'base64');
-  return new Blob([bytes], { type: mimeType });
+/**
+ * Upload a base64 image to uguu.se temporary host and return the public URL.
+ * The URL is valid for ~48 hours.
+ */
+async function uploadImageToTempHost(base64Data: string): Promise<string> {
+  // Strip data URL prefix if present
+  const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+  const buffer = Buffer.from(base64, 'base64');
+
+  const formData = new FormData();
+  const blob = new Blob([buffer], { type: 'image/png' });
+  formData.append('files[]', blob, 'reference.png');
+
+  const response = await fetch('https://uguu.se/upload.php', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload image: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.url;
 }

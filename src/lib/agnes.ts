@@ -7,7 +7,7 @@ export async function generateTextToImage(
   prompt: string,
   styleId: string,
   sizeId: string,
-): Promise<string> {
+): Promise<{ url: string; fullPrompt: string }> {
   const fullPrompt = buildPrompt(prompt, styleId);
   const size = getDimensions(sizeId);
 
@@ -33,7 +33,7 @@ export async function generateTextToImage(
   }
 
   const data = await response.json();
-  return data.data[0].url;
+  return { url: data.data[0].url, fullPrompt };
 }
 
 export async function generateImageToImage(
@@ -41,7 +41,7 @@ export async function generateImageToImage(
   referenceImage: string,
   styleId: string,
   sizeId: string,
-): Promise<string> {
+): Promise<{ url: string; fullPrompt: string }> {
   const fullPrompt = buildPrompt(prompt, styleId);
   const size = sizeId === 'none'
     ? await detectImageDimensions(referenceImage)
@@ -76,7 +76,7 @@ export async function generateImageToImage(
   }
 
   const data = await response.json();
-  return data.data[0].url;
+  return { url: data.data[0].url, fullPrompt };
 }
 
 // ─── Infographic ───────────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ export async function generateInfographic(
   layoutId: string,
   styleId: string,
   aspectId: string,
-): Promise<string> {
+): Promise<{ url: string; fullPrompt: string }> {
   const layoutDesc = LAYOUT_LABELS[layoutId] ?? layoutId;
   const styleDesc = STYLE_LABELS[styleId] ?? styleId;
   const dimensions = ASPECT_DIMENSIONS[aspectId] ?? '1024x576';
@@ -182,7 +182,7 @@ export async function generateInfographic(
   }
 
   const data = await response.json();
-  return data.data[0].url;
+  return { url: data.data[0].url, fullPrompt };
 }
 
 /**

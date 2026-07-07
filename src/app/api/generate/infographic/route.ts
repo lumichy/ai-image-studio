@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const imageUrl = await generateInfographic(prompt, layout, style, aspect || 'landscape');
-    return NextResponse.json({ imageUrl });
+    const { url, fullPrompt } = await generateInfographic(prompt, layout, style, aspect || 'landscape');
+    return NextResponse.json({ imageUrl: url, fullPrompt });
   } catch (error) {
     const message = error instanceof Error ? error.message : '生成失败';
     return NextResponse.json({ error: message }, { status: 500 });

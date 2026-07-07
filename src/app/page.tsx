@@ -52,15 +52,12 @@ export default function Home() {
       if (mode === 'text-to-image') {
         endpoint = '/api/generate/text-to-image';
         body = { prompt, style, size };
-        setDisplayPrompt(prompt);
       } else if (mode === 'image-to-image') {
         endpoint = '/api/generate/image-to-image';
         body = { prompt, referenceImage, style, size };
-        setDisplayPrompt(prompt);
       } else {
         endpoint = '/api/generate/infographic';
         body = { prompt, layout: infoLayout, style: infoStyle, aspect: infoAspect };
-        setDisplayPrompt(`${prompt} [布局: ${infoLayout} | 风格: ${infoStyle} | 比例: ${infoAspect}]`);
       }
 
       const res = await fetch(endpoint, {
@@ -76,6 +73,7 @@ export default function Home() {
       }
 
       setImageUrl(data.imageUrl);
+      setDisplayPrompt(data.fullPrompt || prompt);
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败');
     } finally {

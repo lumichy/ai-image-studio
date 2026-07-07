@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const imageUrl = await generateImageToImage(prompt, referenceImage, style, size);
-    return NextResponse.json({ imageUrl });
+    const { url, fullPrompt } = await generateImageToImage(prompt, referenceImage, style, size);
+    return NextResponse.json({ imageUrl: url, fullPrompt });
   } catch (error) {
     const message = error instanceof Error ? error.message : '生成失败';
     return NextResponse.json({ error: message }, { status: 500 });

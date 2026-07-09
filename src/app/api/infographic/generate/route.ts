@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  analyzeContent,
-  generateStructuredContent,
-  recommendCombinations,
-  buildInfographicPrompt,
-} from '@/lib/infographic-engine';
+import { analyzeContent, generateStructuredContent, buildInfographicPrompt } from '@/lib/infographic-engine';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,27 +18,10 @@ export async function POST(request: NextRequest) {
     // Step 2: Generate structured content
     const structured = await generateStructuredContent(userInput, analysis);
 
-    // Step 3: If user chose "recommend", use LLM to pick layout/style
-    let finalLayoutId = layoutId;
-    let finalStyleId = styleId;
-
-    if (layoutId === '__recommend__' || styleId === '__recommend__') {
-      const combos = await recommendCombinations(analysis, structured);
-      if (combos.length > 0) {
-        const best = combos[0];
-        if (layoutId === '__recommend__') finalLayoutId = best.layoutId;
-        if (styleId === '__recommend__') finalStyleId = best.styleId;
-      } else {
-        // Fallback defaults
-        if (layoutId === '__recommend__') finalLayoutId = 'bento-grid';
-        if (styleId === '__recommend__') finalStyleId = 'craft-handmade';
-      }
-    }
-
     // Step 5: Build final prompt from base-prompt template + layout/style guidelines
     const fullPrompt = await buildInfographicPrompt(
-      finalLayoutId,
-      finalStyleId,
+      layoutId,
+      styleId,
       aspectRatio || '16:9',
       analysis.sourceLanguage || 'zh',
       structured,
@@ -84,12 +62,7 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const imageUrl = data.data[0].url;
 
-    return NextResponse.json({
-      imageUrl,
-      fullPrompt,
-      recommendedLayout: layoutId === '__recommend__' ? finalLayoutId : undefined,
-      recommendedStyle: styleId === '__recommend__' ? finalStyleId : undefined,
-    });
+    return NextResponse.json({ imageUrl, fullPrompt });
   } catch (error) {
     const message = error instanceof Error ? error.message : '生成失败';
     return NextResponse.json({ error: message }, { status: 500 });

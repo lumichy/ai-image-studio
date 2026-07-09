@@ -9,6 +9,7 @@ import ImageUpload from '@/components/ImageUpload';
 import ResultDisplay from '@/components/ResultDisplay';
 import GenerateButton from '@/components/GenerateButton';
 import InfographicFlow from '@/components/InfographicFlow';
+import ComicFlow from '@/components/ComicFlow';
 import { GenerateMode } from '@/types';
 
 export default function Home() {
@@ -82,6 +83,8 @@ export default function Home() {
 
   const isImageMode = mode === 'image-to-image';
   const isInfographicMode = mode === 'infographic';
+  const isComicMode = mode === 'comic';
+  const isSimpleMode = mode === 'text-to-image' || mode === 'image-to-image';
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-6xl">
@@ -93,6 +96,10 @@ export default function Home() {
       {isInfographicMode ? (
         <div className="bg-white rounded-xl shadow-sm p-6">
           <InfographicFlow />
+        </div>
+      ) : isComicMode ? (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <ComicFlow />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

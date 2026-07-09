@@ -1,4 +1,4 @@
-export type GenerateMode = 'text-to-image' | 'image-to-image' | 'infographic';
+export type GenerateMode = 'text-to-image' | 'image-to-image' | 'infographic' | 'comic';
 
 export interface StylePreset {
   id: string;

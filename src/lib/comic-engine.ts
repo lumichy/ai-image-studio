@@ -1,0 +1,292 @@
+import {
+  COMIC_ART_STYLES,
+  COMIC_TONES,
+  COMIC_LAYOUTS,
+  COMIC_PRESETS,
+  COMIC_BASE_PROMPT,
+  COMIC_STORYBOARD_TEMPLATE,
+  ArtStyleDef,
+  ToneDef,
+  LayoutDef,
+  PresetDef,
+} from './comic-data';
+
+const LLM_API_URL = process.env.LLM_API_URL ?? 'https://api.lkeap.cloud.tencent.com/coding/v3';
+const LLM_API_KEY = process.env.LLM_API_KEY ?? '';
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+async function callLLM(messages: ChatMessage[]): Promise<string> {
+  const response = await fetch(`${LLM_API_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${LLM_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'glm-5',
+      messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`LLM API error: ${response.status} ${error}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// ─── Step 1: Analyze Content ──────────────────────────────────────────────────
+
+export interface ComicAnalysis {
+  topic: string;
+  genre: string;
+  audience: string;
+  complexity: string;
+  sourceLanguage: string;
+  keyThemes: string[];
+  suggestedFocus: string;
+}
+
+export async function analyzeComicContent(userInput: string): Promise<ComicAnalysis> {
+  const systemPrompt = `You are a comic content analyst. Analyze the given content for creating an educational/knowledge comic. Return a JSON object with:
+- topic: main topic (in the content's language)
+- genre: comic genre (e.g., "传记", "科普", "教程", "历史", "科学", "哲学")
+- audience: target audience
+- complexity: complexity level (简单/中等/复杂)
+- sourceLanguage: detected language (zh/en/ja/etc)
+- keyThemes: array of 3-6 key themes
+- suggestedFocus: what aspect to emphasize in the comic
+
+Return ONLY the JSON object, no markdown fences.`;
+
+  const result = await callLLM([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userInput },
+  ]);
+
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    const match = result.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse comic analysis');
+  }
+}
+
+// ─── Step 2: Recommend Combinations ───────────────────────────────────────────
+
+export interface ComicCombo {
+  presetId?: string;
+  artId: string;
+  artName: string;
+  toneId: string;
+  toneName: string;
+  layoutId: string;
+  layoutName: string;
+  rationale: string;
+}
+
+export async function recommendComicCombos(
+  analysis: ComicAnalysis,
+): Promise<ComicCombo[]> {
+  const artOptions = COMIC_ART_STYLES.map(a => `${a.id}: ${a.name} — ${a.description}`).join('\n');
+  const toneOptions = COMIC_TONES.map(t => `${t.id}: ${t.name} — ${t.description}`).join('\n');
+  const layoutOptions = COMIC_LAYOUTS.map(l => `${l.id}: ${l.name} — ${l.description}`).join('\n');
+  const presetOptions = COMIC_PRESETS.map(p => `${p.id}: ${p.name} (=${p.equivalent}) — ${p.guidelines.slice(0, 100)}`).join('\n');
+
+  const systemPrompt = `You are a comic design consultant. Based on the content analysis, recommend 3-5 art×tone×layout combinations for a knowledge comic.
+
+Available art styles:
+${artOptions}
+
+Available tones:
+${toneOptions}
+
+Available layouts:
+${layoutOptions}
+
+Available presets (special combinations with extra rules):
+${presetOptions}
+
+Return a JSON array of objects with:
+- presetId: preset id if using a preset, otherwise null
+- artId: art style id
+- artName: art style display name
+- toneId: tone id
+- toneName: tone display name
+- layoutId: layout id
+- layoutName: layout display name
+- rationale: brief explanation (in the content's language)
+
+Consider: content genre → matching art style, tone → matching mood, audience → matching layout complexity.
+
+Return ONLY the JSON array, no markdown fences.`;
+
+  const result = await callLLM([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}` },
+  ]);
+
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    const match = result.match(/\[[\s\S]*\]/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse comic recommendations');
+  }
+}
+
+// ─── Step 3: Generate Storyboard ──────────────────────────────────────────────
+
+export interface ComicPage {
+  pageNumber: number;
+  type: 'cover' | 'page';
+  title: string;
+  description: string;
+  panels: {
+    panelNumber: number;
+    description: string;
+    dialogue: string[];
+    narration: string;
+    visualNotes: string;
+  }[];
+  characters: string[];
+}
+
+export interface Storyboard {
+  title: string;
+  pageCount: number;
+  pages: ComicPage[];
+  characters: {
+    name: string;
+    description: string;
+    appearance: string;
+    personality: string;
+  }[];
+}
+
+export async function generateStoryboard(
+  userInput: string,
+  analysis: ComicAnalysis,
+  artId: string,
+  toneId: string,
+  layoutId: string,
+  language: string,
+): Promise<Storyboard> {
+  const art = COMIC_ART_STYLES.find(a => a.id === artId);
+  const tone = COMIC_TONES.find(t => t.id === toneId);
+  const layout = COMIC_LAYOUTS.find(l => l.id === layoutId);
+
+  const systemPrompt = `You are a comic storyboard writer. Create a storyboard for a knowledge comic based on the given content.
+
+Art style: ${art?.name} — ${art?.description}
+Tone: ${tone?.name} — ${tone?.description}
+Layout: ${layout?.name} — ${layout?.description}
+Language: ${language}
+
+Rules:
+- Create 4-8 pages (including cover)
+- First page is the cover
+- Each page has 2-4 panels depending on layout
+- Preserve source data faithfully — no fabricating facts
+- Keep dialogue concise and natural
+- Include narration where needed for context
+- All text in ${language}
+
+Return a JSON object with:
+- title: comic title (in ${language})
+- pageCount: total page count
+- characters: array of { name, description, appearance, personality }
+- pages: array of {
+    pageNumber, type ("cover"|"page"), title,
+    description: page scene description,
+    panels: array of { panelNumber, description, dialogue (string[]), narration, visualNotes }
+  }
+
+Return ONLY the JSON object, no markdown fences.`;
+
+  const result = await callLLM([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
+  ]);
+
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    const match = result.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse storyboard');
+  }
+}
+
+// ─── Step 5: Build Final Prompt for a Page ────────────────────────────────────
+
+export function buildComicPagePrompt(
+  page: ComicPage,
+  characters: Storyboard['characters'],
+  artId: string,
+  toneId: string,
+  layoutId: string,
+  aspectRatio: string,
+  language: string,
+): string {
+  const art = COMIC_ART_STYLES.find(a => a.id === artId);
+  const tone = COMIC_TONES.find(t => t.id === toneId);
+  const layout = COMIC_LAYOUTS.find(l => l.id === layoutId);
+
+  const charDescriptions = characters.map(c =>
+    `- ${c.name}: ${c.appearance}. ${c.personality}`
+  ).join('\n');
+
+  const panelDescriptions = page.panels.map(p => {
+    const dialogue = p.dialogue.length > 0 ? `\n    Dialogue: ${p.dialogue.join(' / ')}` : '';
+    const narration = p.narration ? `\n    Narration: ${p.narration}` : '';
+    return `  Panel ${p.panelNumber}: ${p.description}${dialogue}${narration}\n    Visual: ${p.visualNotes}`;
+  }).join('\n');
+
+  let prompt = COMIC_BASE_PROMPT
+    .replace('{{ART_STYLE}}', art?.name ?? 'Ligne Claire')
+    .replace('{{ART_GUIDELINES}}', art?.guidelines ?? '')
+    .replace('{{TONE}}', tone?.name ?? 'Neutral')
+    .replace('{{TONE_GUIDELINES}}', tone?.guidelines ?? '')
+    .replace('{{LAYOUT}}', layout?.name ?? 'Standard')
+    .replace('{{LAYOUT_GUIDELINES}}', layout?.guidelines ?? '')
+    .replace('{{ASPECT_RATIO}}', aspectRatio)
+    .replace('{{LANGUAGE}}', language)
+    .replace('{{PAGE_NUMBER}}', String(page.pageNumber))
+    .replace('{{PAGE_TYPE}}', page.type)
+    .replace('{{PAGE_TITLE}}', page.title)
+    .replace('{{PAGE_DESCRIPTION}}', page.description)
+    .replace('{{CHARACTERS}}', charDescriptions)
+    .replace('{{PANELS}}', panelDescriptions);
+
+  return prompt;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function getArtStyleById(id: string): ArtStyleDef | undefined {
+  return COMIC_ART_STYLES.find(a => a.id === id);
+}
+
+export function getToneById(id: string): ToneDef | undefined {
+  return COMIC_TONES.find(t => t.id === id);
+}
+
+export function getLayoutById(id: string): LayoutDef | undefined {
+  return COMIC_LAYOUTS.find(l => l.id === id);
+}
+
+export function getPresetById(id: string): PresetDef | undefined {
+  return COMIC_PRESETS.find(p => p.id === id);
+}
+
+export { COMIC_ART_STYLES, COMIC_TONES, COMIC_LAYOUTS, COMIC_PRESETS };

@@ -12,6 +12,7 @@ export default function ModeSwitch({ mode, onChange }: ModeSwitchProps) {
     { id: 'text-to-image', label: '文生图' },
     { id: 'image-to-image', label: '图生图' },
     { id: 'infographic', label: '信息图' },
+    { id: 'comic', label: '知识漫画' },
   ];
 
   return (

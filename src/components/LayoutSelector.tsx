@@ -6,6 +6,7 @@ interface LayoutSelectorProps {
 }
 
 const LAYOUTS = [
+  { id: '__recommend__', label: '🎲 请你推荐', desc: 'AI 智能匹配' },
   { id: 'bento-grid', label: '便当网格', desc: '多主题概览' },
   { id: 'linear-progression', label: '线性递进', desc: '时间线/流程' },
   { id: 'binary-comparison', label: '二元对比', desc: 'A vs B' },

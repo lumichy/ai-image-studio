@@ -6,6 +6,7 @@ interface InfoStyleSelectorProps {
 }
 
 const INFO_STYLES = [
+  { id: '__recommend__', label: '🎲 请你推荐', desc: 'AI 智能匹配' },
   { id: 'craft-handmade', label: '手绘纸艺', desc: '默认' },
   { id: 'claymation', label: '黏土动画', desc: '3D黏土' },
   { id: 'kawaii', label: '日系可爱', desc: '粉彩' },

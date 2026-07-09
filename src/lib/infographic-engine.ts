@@ -16,7 +16,7 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
       Authorization: `Bearer ${LLM_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-v3',
+      model: 'glm-5',
       messages,
       temperature: 0.7,
       max_tokens: 4096,

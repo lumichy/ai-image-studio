@@ -1,14 +1,14 @@
 import {
-  COMIC_ART_STYLES,
-  COMIC_TONES,
-  COMIC_LAYOUTS,
-  COMIC_PRESETS,
+  ART_STYLES as COMIC_ART_STYLES,
+  TONES as COMIC_TONES,
+  LAYOUTS as COMIC_LAYOUTS,
+  PRESETS as COMIC_PRESETS,
   COMIC_BASE_PROMPT,
-  COMIC_STORYBOARD_TEMPLATE,
-  ArtStyleDef,
-  ToneDef,
-  LayoutDef,
-  PresetDef,
+  STORYBOARD_TEMPLATE as COMIC_STORYBOARD_TEMPLATE,
+  ArtStyle as ArtStyleDef,
+  Tone as ToneDef,
+  Layout as LayoutDef,
+  Preset as PresetDef,
 } from './comic-data';
 
 const LLM_API_URL = process.env.LLM_API_URL ?? 'https://api.lkeap.cloud.tencent.com/coding/v3';
@@ -100,7 +100,7 @@ export async function recommendComicCombos(
   const artOptions = COMIC_ART_STYLES.map(a => `${a.id}: ${a.name} — ${a.description}`).join('\n');
   const toneOptions = COMIC_TONES.map(t => `${t.id}: ${t.name} — ${t.description}`).join('\n');
   const layoutOptions = COMIC_LAYOUTS.map(l => `${l.id}: ${l.name} — ${l.description}`).join('\n');
-  const presetOptions = COMIC_PRESETS.map(p => `${p.id}: ${p.name} (=${p.equivalent}) — ${p.guidelines.slice(0, 100)}`).join('\n');
+  const presetOptions = COMIC_PRESETS.map(p => `${p.id}: ${p.name} — ${p.description}`).join('\n');
 
   const systemPrompt = `You are a comic design consultant. Based on the content analysis, recommend 3-5 art×tone×layout combinations for a knowledge comic.
 

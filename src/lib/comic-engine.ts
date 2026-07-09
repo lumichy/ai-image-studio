@@ -27,7 +27,7 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
       Authorization: `Bearer ${LLM_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'agnes-chat',
+      model: 'agnes-2.0-flash',
       messages,
       temperature: 0.7,
       max_tokens: 4096,

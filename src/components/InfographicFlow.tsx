@@ -17,6 +17,12 @@ interface Combo {
   rationale: string;
 }
 
+const ASPECTS = [
+  { id: '16:9', label: '16:9 横版' },
+  { id: '9:16', label: '9:16 竖版' },
+  { id: '1:1', label: '1:1 方形' },
+];
+
 export default function InfographicFlow() {
   const [step, setStep] = useState<Step>('input');
   const [prompt, setPrompt] = useState('');
@@ -29,19 +35,13 @@ export default function InfographicFlow() {
   const [fullPrompt, setFullPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const ASPECTS = [
-    { id: '16:9', label: '16:9 横版' },
-    { id: '9:16', label: '9:16 竖版' },
-    { id: '1:1', label: '1:1 方形' },
-  ];
-
   const needsRecommend = layout === '__recommend__' || style === '__recommend__';
+  const isBusy = step === 'recommending' || step === 'generating';
 
   const handleGenerate = async () => {
     setError(null);
 
     if (needsRecommend) {
-      // Step: Recommend — call API to get combinations
       setStep('recommending');
       try {
         const res = await fetch('/api/infographic/recommend', {
@@ -61,7 +61,6 @@ export default function InfographicFlow() {
       return;
     }
 
-    // Both layout and style are manually selected — generate directly
     await doGenerate(layout, style);
   };
 
@@ -88,7 +87,7 @@ export default function InfographicFlow() {
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败');
-      setStep(needsRecommend ? 'confirm' : 'input');
+      setStep(combos.length > 0 ? 'confirm' : 'input');
     }
   };
 
@@ -117,12 +116,15 @@ export default function InfographicFlow() {
     );
   }
 
-  // ─── Recommending ─────────────────────────────
-  if (step === 'recommending') {
+  // ─── Loading spinner ──────────────────────────
+  if (isBusy && (step === 'recommending' || (step === 'generating' && combos.length === 0))) {
+    const msg = step === 'recommending'
+      ? 'AI 正在分析内容并推荐设计方案...'
+      : 'AI 正在结构化内容并生成信息图...';
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">AI 正在分析内容并推荐设计方案...</p>
+        <p className="text-gray-500">{msg}</p>
       </div>
     );
   }
@@ -135,31 +137,28 @@ export default function InfographicFlow() {
           🎨 AI 根据内容推荐了以下方案，选择一个后生成：
         </div>
 
-        <div>
-          <div className="space-y-2">
-            {combos.map((combo, i) => (
-              <button
-                key={i}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                  selectedCombo === i
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
-                onClick={() => setSelectedCombo(i)}
-                disabled={step === 'generating'}
-              >
-                <div className="font-medium">
-                  {combo.layoutName} × {combo.styleName}
-                </div>
-                <div className={`text-sm ${selectedCombo === i ? 'opacity-80' : 'opacity-60'}`}>
-                  {combo.rationale}
-                </div>
-              </button>
-            ))}
-          </div>
+        <div className="space-y-2">
+          {combos.map((combo, i) => (
+            <button
+              key={i}
+              className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                selectedCombo === i
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+              onClick={() => setSelectedCombo(i)}
+              disabled={isBusy}
+            >
+              <div className="font-medium">
+                {combo.layoutName} × {combo.styleName}
+              </div>
+              <div className={`text-sm ${selectedCombo === i ? 'opacity-80' : 'opacity-60'}`}>
+                {combo.rationale}
+              </div>
+            </button>
+          ))}
         </div>
 
-        {/* Aspect ratio */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
           <div className="grid grid-cols-3 gap-2">
@@ -172,7 +171,7 @@ export default function InfographicFlow() {
                     : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                 }`}
                 onClick={() => setAspect(a.id)}
-                disabled={step === 'generating'}
+                disabled={isBusy}
               >
                 {a.label}
               </button>
@@ -191,7 +190,7 @@ export default function InfographicFlow() {
         <button
           className="w-full text-sm text-gray-400 hover:text-gray-600"
           onClick={() => { setStep('input'); setCombos([]); }}
-          disabled={step === 'generating'}
+          disabled={isBusy}
         >
           ← 返回重新选择
         </button>

@@ -36,70 +36,6 @@ export default function InfographicFlow() {
   const [error, setError] = useState<string | null>(null);
 
   const needsRecommend = layout === '__recommend__' || style === '__recommend__';
-  const isBusy = step === 'recommending' || step === 'generating';
-
-  const handleGenerate = async () => {
-    setError(null);
-
-    if (needsRecommend) {
-      setStep('recommending');
-      try {
-        const res = await fetch('/api/infographic/recommend', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || '推荐失败');
-        setCombos(data.combos);
-        setSelectedCombo(0);
-        setStep('confirm');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '推荐失败');
-        setStep('input');
-      }
-      return;
-    }
-
-    await doGenerate(layout, style);
-  };
-
-  const handleConfirmGenerate = async () => {
-    const combo = combos[selectedCombo];
-    await doGenerate(combo.layoutId, combo.styleId);
-  };
-
-  const doGenerate = async (layoutId: string, styleId: string) => {
-    setStep('generating');
-    setError(null);
-    try {
-      const res = await fetch('/api/infographic/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, layoutId, styleId, aspectRatio: aspect }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '生成失败');
-      setImageUrl(data.imageUrl);
-      setFullPrompt(data.fullPrompt);
-      setLayout(layoutId);
-      setStyle(styleId);
-      setStep('done');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '生成失败');
-      setStep(combos.length > 0 ? 'confirm' : 'input');
-    }
-  };
-
-  const handleReset = () => {
-    setStep('input');
-    setLayout('__recommend__');
-    setStyle('__recommend__');
-    setCombos([]);
-    setImageUrl(null);
-    setFullPrompt('');
-    setError(null);
-  };
 
   // ─── Done ─────────────────────────────────────
   if (step === 'done') {
@@ -108,7 +44,15 @@ export default function InfographicFlow() {
         <ResultDisplay imageUrl={imageUrl} error={error} prompt={fullPrompt} />
         <button
           className="w-full px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-          onClick={handleReset}
+          onClick={() => {
+            setStep('input');
+            setLayout('__recommend__');
+            setStyle('__recommend__');
+            setCombos([]);
+            setImageUrl(null);
+            setFullPrompt('');
+            setError(null);
+          }}
         >
           ↻ 重新制作
         </button>
@@ -116,21 +60,29 @@ export default function InfographicFlow() {
     );
   }
 
-  // ─── Loading spinner ──────────────────────────
-  if (isBusy && (step === 'recommending' || (step === 'generating' && combos.length === 0))) {
-    const msg = step === 'recommending'
-      ? 'AI 正在分析内容并推荐设计方案...'
-      : 'AI 正在结构化内容并生成信息图...';
+  // ─── Recommending spinner ─────────────────────
+  if (step === 'recommending') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">{msg}</p>
+        <p className="text-gray-500">AI 正在分析内容并推荐设计方案...</p>
+      </div>
+    );
+  }
+
+  // ─── Generating spinner (direct, no combos) ──
+  if (step === 'generating' && combos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
+        <p className="text-gray-500">AI 正在结构化内容并生成信息图...</p>
       </div>
     );
   }
 
   // ─── Confirm (recommendation results) ─────────
-  if (step === 'confirm' || (step === 'generating' && combos.length > 0)) {
+  if (step === 'confirm' || step === 'generating') {
+    const isGenerating = step === 'generating';
     return (
       <div className="space-y-4">
         <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
@@ -147,7 +99,7 @@ export default function InfographicFlow() {
                   : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
               onClick={() => setSelectedCombo(i)}
-              disabled={isBusy}
+              disabled={isGenerating}
             >
               <div className="font-medium">
                 {combo.layoutName} × {combo.styleName}
@@ -171,7 +123,7 @@ export default function InfographicFlow() {
                     : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                 }`}
                 onClick={() => setAspect(a.id)}
-                disabled={isBusy}
+                disabled={isGenerating}
               >
                 {a.label}
               </button>
@@ -180,8 +132,29 @@ export default function InfographicFlow() {
         </div>
 
         <GenerateButton
-          onClick={handleConfirmGenerate}
-          loading={step === 'generating'}
+          onClick={async () => {
+            setStep('generating');
+            setError(null);
+            try {
+              const combo = combos[selectedCombo];
+              const res = await fetch('/api/infographic/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, layoutId: combo.layoutId, styleId: combo.styleId, aspectRatio: aspect }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || '生成失败');
+              setImageUrl(data.imageUrl);
+              setFullPrompt(data.fullPrompt);
+              setLayout(combo.layoutId);
+              setStyle(combo.styleId);
+              setStep('done');
+            } catch (err) {
+              setError(err instanceof Error ? err.message : '生成失败');
+              setStep('confirm');
+            }
+          }}
+          loading={isGenerating}
           disabled={false}
           label="确认生成"
         />
@@ -190,7 +163,7 @@ export default function InfographicFlow() {
         <button
           className="w-full text-sm text-gray-400 hover:text-gray-600"
           onClick={() => { setStep('input'); setCombos([]); }}
-          disabled={isBusy}
+          disabled={isGenerating}
         >
           ← 返回重新选择
         </button>
@@ -199,6 +172,49 @@ export default function InfographicFlow() {
   }
 
   // ─── Input ────────────────────────────────────
+  const handleGenerate = async () => {
+    setError(null);
+
+    if (needsRecommend) {
+      setStep('recommending');
+      try {
+        const res = await fetch('/api/infographic/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '推荐失败');
+        setCombos(data.combos);
+        setSelectedCombo(0);
+        setStep('confirm');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '推荐失败');
+        setStep('input');
+      }
+      return;
+    }
+
+    // Direct generate
+    setStep('generating');
+    setCombos([]); // ensure combos is empty so the generating spinner shows
+    try {
+      const res = await fetch('/api/infographic/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, layoutId: layout, styleId: style, aspectRatio: aspect }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '生成失败');
+      setImageUrl(data.imageUrl);
+      setFullPrompt(data.fullPrompt);
+      setStep('done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '生成失败');
+      setStep('input');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">

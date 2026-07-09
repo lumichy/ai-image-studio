@@ -242,31 +242,55 @@ export function buildComicPagePrompt(
   const tone = COMIC_TONES.find(t => t.id === toneId);
   const layout = COMIC_LAYOUTS.find(l => l.id === layoutId);
 
-  const charDescriptions = characters.map(c =>
-    `- ${c.name}: ${c.appearance}. ${c.personality}`
+  const charDescriptions = (characters ?? []).map(c =>
+    `- ${c.name}: ${c.appearance ?? ''}. ${c.personality ?? ''}`
   ).join('\n');
 
-  const panelDescriptions = page.panels.map(p => {
-    const dialogue = p.dialogue.length > 0 ? `\n    Dialogue: ${p.dialogue.join(' / ')}` : '';
+  const panelDescriptions = (page.panels ?? []).map(p => {
+    const dialogue = (p.dialogue && p.dialogue.length > 0) ? `\n    Dialogue: ${p.dialogue.join(' / ')}` : '';
     const narration = p.narration ? `\n    Narration: ${p.narration}` : '';
-    return `  Panel ${p.panelNumber}: ${p.description}${dialogue}${narration}\n    Visual: ${p.visualNotes}`;
+    return `  Panel ${p.panelNumber}: ${p.description ?? ''}${dialogue}${narration}\n    Visual: ${p.visualNotes ?? ''}`;
   }).join('\n');
 
-  let prompt = COMIC_BASE_PROMPT
-    .replace('{{ART_STYLE}}', art?.name ?? 'Ligne Claire')
-    .replace('{{ART_GUIDELINES}}', art?.guidelines ?? '')
-    .replace('{{TONE}}', tone?.name ?? 'Neutral')
-    .replace('{{TONE_GUIDELINES}}', tone?.guidelines ?? '')
-    .replace('{{LAYOUT}}', layout?.name ?? 'Standard')
-    .replace('{{LAYOUT_GUIDELINES}}', layout?.guidelines ?? '')
-    .replace('{{ASPECT_RATIO}}', aspectRatio)
-    .replace('{{LANGUAGE}}', language)
-    .replace('{{PAGE_NUMBER}}', String(page.pageNumber))
-    .replace('{{PAGE_TYPE}}', page.type)
-    .replace('{{PAGE_TITLE}}', page.title)
-    .replace('{{PAGE_DESCRIPTION}}', page.description)
-    .replace('{{CHARACTERS}}', charDescriptions)
-    .replace('{{PANELS}}', panelDescriptions);
+  const prompt = `Create a knowledge comic page with the following specifications:
+
+## Art Style
+${art?.name ?? 'Ligne Claire'}
+${art?.guidelines ?? ''}
+
+## Tone
+${tone?.name ?? 'Neutral'}
+${tone?.guidelines ?? ''}
+
+## Layout
+${layout?.name ?? 'Standard'}
+${layout?.guidelines ?? ''}
+
+## Page Info
+- Page Number: ${page.pageNumber}
+- Page Type: ${page.type}
+- Title: ${page.title}
+- Aspect Ratio: ${aspectRatio}
+- Language: ${language}
+
+## Characters
+${charDescriptions || 'No recurring characters'}
+
+## Scene Description
+${page.description ?? ''}
+
+## Panels
+${panelDescriptions || 'Single page illustration'}
+
+## Rendering Rules
+- Follow the art style guidelines precisely
+- Apply tone/mood consistently
+- Maintain character consistency
+- Clear panel borders with white gutters
+- Hand-lettered style text in speech bubbles and narration boxes
+- All text in ${language}
+
+${COMIC_BASE_PROMPT}`;
 
   return prompt;
 }

@@ -92,6 +92,9 @@ export default function ComicFlow() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '推荐失败');
+        if (!data.combos || !Array.isArray(data.combos)) {
+          throw new Error('推荐返回数据异常');
+        }
         setCombos(data.combos);
         setSelectedCombo(0);
         setStep('confirm');
@@ -113,6 +116,9 @@ export default function ComicFlow() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '生成失败');
+      if (!data.pages || !Array.isArray(data.pages)) {
+        throw new Error('生成返回数据异常');
+      }
       setPages(data.pages);
       setTitle(data.title);
       setStep('done');
@@ -134,6 +140,9 @@ export default function ComicFlow() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '生成失败');
+      if (!data.pages || !Array.isArray(data.pages)) {
+        throw new Error('生成返回数据异常');
+      }
       setPages(data.pages);
       setTitle(data.title);
       setArt(combo.artId);

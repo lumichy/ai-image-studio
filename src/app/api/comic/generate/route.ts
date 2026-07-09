@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
     // Step 3: Generate storyboard
     const storyboard = await generateStoryboard(userInput, analysis, artId, toneId, layoutId, language);
 
+    if (!storyboard.pages || !Array.isArray(storyboard.pages)) {
+      return NextResponse.json(
+        { error: 'Storyboard 生成异常：缺少 pages 数据' },
+        { status: 500 },
+      );
+    }
+
     // Step 5: Build prompts and generate images for each page
     const pages = await Promise.all(
       storyboard.pages.map(async (page) => {

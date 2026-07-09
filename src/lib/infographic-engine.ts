@@ -1,7 +1,7 @@
 import { INFOGRAPHIC_LAYOUTS, INFOGRAPHIC_STYLES, INFOGRAPHIC_BASE_PROMPT, LayoutDef, StyleDef } from './infographic-data';
 
-const LLM_API_URL = process.env.LLM_API_URL ?? 'https://api.lkeap.cloud.tencent.com/coding/v3';
-const LLM_API_KEY = process.env.LLM_API_KEY ?? '';
+const LLM_API_URL = process.env.AGNES_API_BASE_URL ?? 'https://apihub.agnes-ai.com/v1';
+const LLM_API_KEY = process.env.AGNES_API_KEY ?? '';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -16,7 +16,7 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
       Authorization: `Bearer ${LLM_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'glm-5',
+      model: 'agnes-chat',
       messages,
       temperature: 0.7,
       max_tokens: 4096,

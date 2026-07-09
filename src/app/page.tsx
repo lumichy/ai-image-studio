@@ -8,13 +8,13 @@ import SizeSelector from '@/components/SizeSelector';
 import ImageUpload from '@/components/ImageUpload';
 import ResultDisplay from '@/components/ResultDisplay';
 import GenerateButton from '@/components/GenerateButton';
-import LayoutSelector from '@/components/LayoutSelector';
-import InfoStyleSelector from '@/components/InfoStyleSelector';
-import AspectRatioSelector from '@/components/AspectRatioSelector';
+import InfographicFlow from '@/components/InfographicFlow';
 import { GenerateMode } from '@/types';
 
 export default function Home() {
   const [mode, setMode] = useState<GenerateMode>('text-to-image');
+
+  // Text-to-image / Image-to-image state
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState('anime');
   const [size, setSize] = useState('square');
@@ -23,11 +23,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [displayPrompt, setDisplayPrompt] = useState('');
-
-  // Infographic state
-  const [infoLayout, setInfoLayout] = useState('bento-grid');
-  const [infoStyle, setInfoStyle] = useState('craft-handmade');
-  const [infoAspect, setInfoAspect] = useState('landscape');
 
   const handleModeChange = (newMode: GenerateMode) => {
     setMode(newMode);
@@ -56,8 +51,7 @@ export default function Home() {
         endpoint = '/api/generate/image-to-image';
         body = { prompt, referenceImage, style, size };
       } else {
-        endpoint = '/api/generate/infographic';
-        body = { prompt, layout: infoLayout, style: infoStyle, aspect: infoAspect };
+        return; // infographic mode handles its own flow
       }
 
       const res = await fetch(endpoint, {
@@ -84,7 +78,6 @@ export default function Home() {
   const canGenerate =
     prompt.trim().length > 0 &&
     (mode === 'text-to-image' ||
-      mode === 'infographic' ||
       (mode === 'image-to-image' && referenceImage.length > 0));
 
   const isImageMode = mode === 'image-to-image';
@@ -97,40 +90,36 @@ export default function Home() {
 
       <ModeSwitch mode={mode} onChange={handleModeChange} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 左侧：参数面板 */}
+      {isInfographicMode ? (
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <PromptInput value={prompt} onChange={setPrompt} />
-
-          {isImageMode && (
-            <ImageUpload onUpload={setReferenceImage} />
-          )}
-
-          {isInfographicMode ? (
-            <>
-              <LayoutSelector selected={infoLayout} onChange={setInfoLayout} />
-              <InfoStyleSelector selected={infoStyle} onChange={setInfoStyle} />
-              <AspectRatioSelector selected={infoAspect} onChange={setInfoAspect} />
-            </>
-          ) : (
-            <>
-              <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
-              <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
-            </>
-          )}
-
-          <GenerateButton
-            onClick={handleGenerate}
-            loading={loading}
-            disabled={!canGenerate}
-          />
+          <InfographicFlow />
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 左侧：参数面板 */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <PromptInput value={prompt} onChange={setPrompt} />
 
-        {/* 右侧：结果区 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <ResultDisplay imageUrl={imageUrl} error={error} prompt={displayPrompt} />
+            {isImageMode && (
+              <ImageUpload onUpload={setReferenceImage} />
+            )}
+
+            <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
+            <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
+
+            <GenerateButton
+              onClick={handleGenerate}
+              loading={loading}
+              disabled={!canGenerate}
+            />
+          </div>
+
+          {/* 右侧：结果区 */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <ResultDisplay imageUrl={imageUrl} error={error} prompt={displayPrompt} />
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }

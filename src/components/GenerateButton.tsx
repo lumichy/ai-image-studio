@@ -4,9 +4,10 @@ interface GenerateButtonProps {
   onClick: () => void;
   loading: boolean;
   disabled: boolean;
+  label?: string;
 }
 
-export default function GenerateButton({ onClick, loading, disabled }: GenerateButtonProps) {
+export default function GenerateButton({ onClick, loading, disabled, label }: GenerateButtonProps) {
   return (
     <button
       className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -22,7 +23,7 @@ export default function GenerateButton({ onClick, loading, disabled }: GenerateB
           生成中...
         </span>
       ) : (
-        '生成图片'
+        label || '生成图片'
       )}
     </button>
   );

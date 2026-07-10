@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeContent, generateStructuredContent, buildInfographicPrompt } from '@/lib/infographic-engine';
+import { analyzeContent, generateStructuredContent, buildInfographicPrompt, ContentAnalysis, StructuredContent } from '@/lib/infographic-engine';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt: userInput, layoutId, styleId, aspectRatio } = await request.json();
+    const { prompt: userInput, layoutId, styleId, aspectRatio, analysis: cachedAnalysis, structured: cachedStructured } = await request.json();
 
     if (!userInput || !layoutId || !styleId) {
       return NextResponse.json(
@@ -12,13 +12,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Analyze content
-    const analysis = await analyzeContent(userInput);
+    // Step 1: Analyze content (skip if cached)
+    const analysis: ContentAnalysis = cachedAnalysis ?? await analyzeContent(userInput);
 
-    // Step 2: Generate structured content
-    const structured = await generateStructuredContent(userInput, analysis);
+    // Step 2: Generate structured content (skip if cached)
+    const structured: StructuredContent = cachedStructured ?? await generateStructuredContent(userInput, analysis);
 
-    // Step 5: Build final prompt from base-prompt template + layout/style guidelines
+    // Step 3: Build final prompt from base-prompt template + layout/style guidelines
     const fullPrompt = await buildInfographicPrompt(
       layoutId,
       styleId,
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       structured,
     );
 
-    // Step 6: Generate image via Agnes API
+    // Step 4: Generate image via Agnes API
     const aspectToSize: Record<string, string> = {
       '16:9': '1024x576',
       '9:16': '576x1024',

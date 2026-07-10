@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
     // Step 3: Recommend combinations
     const combos = await recommendCombinations(analysis, structured);
 
-    return NextResponse.json({ combos });
+    // Return analysis + structured so the client can pass them back to /generate
+    // to skip redundant LLM calls
+    return NextResponse.json({ combos, analysis, structured });
   } catch (error) {
     const message = error instanceof Error ? error.message : '推荐失败';
     return NextResponse.json({ error: message }, { status: 500 });

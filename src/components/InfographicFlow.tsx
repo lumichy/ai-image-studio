@@ -17,6 +17,13 @@ interface Combo {
   rationale: string;
 }
 
+// Cached analysis & structured content from recommend step
+// to skip redundant LLM calls in generate step
+interface CachedData {
+  analysis: unknown;
+  structured: unknown;
+}
+
 const ASPECTS = [
   { id: '16:9', label: '16:9 横版' },
   { id: '9:16', label: '9:16 竖版' },
@@ -34,6 +41,7 @@ export default function InfographicFlow() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [fullPrompt, setFullPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [cached, setCached] = useState<CachedData | null>(null);
 
   const needsRecommend = layout === '__recommend__' || style === '__recommend__';
 
@@ -51,6 +59,7 @@ export default function InfographicFlow() {
             setImageUrl(null);
             setFullPrompt('');
             setError(null);
+            setCached(null);
           }}
         >
           ↻ 重新制作
@@ -134,7 +143,15 @@ export default function InfographicFlow() {
               const res = await fetch('/api/infographic/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, layoutId: combo.layoutId, styleId: combo.styleId, aspectRatio: aspect }),
+                body: JSON.stringify({
+                  prompt,
+                  layoutId: combo.layoutId,
+                  styleId: combo.styleId,
+                  aspectRatio: aspect,
+                  // Pass cached analysis & structured to skip 2 redundant LLM calls
+                  analysis: cached?.analysis,
+                  structured: cached?.structured,
+                }),
               });
               const data = await res.json();
               if (!res.ok) throw new Error(data.error || '生成失败');
@@ -179,6 +196,8 @@ export default function InfographicFlow() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '推荐失败');
         setCombos(data.combos);
+        // Cache analysis & structured for later generate call
+        setCached({ analysis: data.analysis, structured: data.structured });
         setSelectedCombo(0);
         setStep('confirm');
       } catch (err) {

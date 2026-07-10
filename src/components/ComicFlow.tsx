@@ -44,6 +44,7 @@ export default function ComicFlow() {
   const [pages, setPages] = useState<ComicPage[]>([]);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [cachedAnalysis, setCachedAnalysis] = useState<unknown>(null);
 
   const needsRecommend = art === '__recommend__' || tone === '__recommend__' || layout === '__recommend__';
 
@@ -96,6 +97,7 @@ export default function ComicFlow() {
           throw new Error('推荐返回数据异常');
         }
         setCombos(data.combos);
+        setCachedAnalysis(data.analysis);
         setSelectedCombo(0);
         setStep('confirm');
       } catch (err) {
@@ -135,7 +137,7 @@ export default function ComicFlow() {
       const res = await fetch('/api/comic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, artId: combo.artId, toneId: combo.toneId, layoutId: combo.layoutId, aspectRatio: aspect }),
+        body: JSON.stringify({ prompt, artId: combo.artId, toneId: combo.toneId, layoutId: combo.layoutId, aspectRatio: aspect, analysis: cachedAnalysis }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '生成失败');
@@ -163,6 +165,7 @@ export default function ComicFlow() {
     setPages([]);
     setTitle('');
     setError(null);
+    setCachedAnalysis(null);
   };
 
   if (step === 'done') {

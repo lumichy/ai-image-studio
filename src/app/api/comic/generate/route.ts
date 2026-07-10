@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeComicContent, generateStoryboard, buildComicPagePrompt } from '@/lib/comic-engine';
+import { analyzeComicContent, generateStoryboard, buildComicPagePrompt, ComicAnalysis } from '@/lib/comic-engine';
 
 const AGNES_API_BASE_URL = process.env.AGNES_API_BASE_URL ?? 'https://apihub.agnes-ai.com/v1';
 const AGNES_API_KEY = process.env.AGNES_API_KEY;
@@ -12,7 +12,7 @@ const ASPECT_TO_SIZE: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt: userInput, artId, toneId, layoutId, aspectRatio } = await request.json();
+    const { prompt: userInput, artId, toneId, layoutId, aspectRatio, analysis: cachedAnalysis } = await request.json();
 
     if (!userInput || !artId || !toneId || !layoutId) {
       return NextResponse.json(
@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Analyze content
-    const analysis = await analyzeComicContent(userInput);
+    // Step 1: Analyze content (skip if cached from recommend step)
+    const analysis: ComicAnalysis = cachedAnalysis ?? await analyzeComicContent(userInput);
     const language = analysis.sourceLanguage || 'zh';
     const aspect = aspectRatio || '3:4';
     const size = ASPECT_TO_SIZE[aspect] ?? '768x1024';

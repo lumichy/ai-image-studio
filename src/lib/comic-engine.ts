@@ -43,6 +43,73 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
   return data.choices[0].message.content;
 }
 
+// ─── Robust JSON extraction ──────────────────────────────────────────────────
+
+function extractJSON<T>(raw: string): T {
+  let text = raw.trim();
+
+  // Strip markdown code fences ```json ... ``` or ``` ... ```
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
+  }
+
+  // Try direct parse first
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Fall through to extraction
+  }
+
+  // Scan for balanced braces/brackets (handles strings with nested quotes)
+  const tryExtract = (open: string, close: string): string | null => {
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+
+      if (ch === open) {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (ch === close) {
+        depth--;
+        if (depth === 0 && start >= 0) return text.slice(start, i + 1);
+      }
+    }
+    return null;
+  };
+
+  const objMatch = tryExtract('{', '}');
+  if (objMatch) {
+    try { return JSON.parse(objMatch) as T; } catch {}
+  }
+
+  const arrMatch = tryExtract('[', ']');
+  if (arrMatch) {
+    try { return JSON.parse(arrMatch) as T; } catch {}
+  }
+
+  // Last resort: old regex
+  const objRegex = text.match(/\{[\s\S]*\}/);
+  if (objRegex) {
+    try { return JSON.parse(objRegex[0]) as T; } catch {}
+  }
+
+  const arrRegex = text.match(/\[[\s\S]*\]/);
+  if (arrRegex) {
+    try { return JSON.parse(arrRegex[0]) as T; } catch {}
+  }
+
+  throw new Error(`Failed to parse JSON from LLM response. First 200 chars: ${text.slice(0, 200)}`);
+}
+
 // ─── Step 1: Analyze Content ──────────────────────────────────────────────────
 
 export interface ComicAnalysis {
@@ -72,13 +139,7 @@ Return ONLY the JSON object, no markdown fences.`;
     { role: 'user', content: userInput },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    const match = result.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse comic analysis');
-  }
+  return extractJSON<ComicAnalysis>(result);
 }
 
 // ─── Step 2: Recommend Combinations ───────────────────────────────────────────
@@ -135,13 +196,7 @@ Return ONLY the JSON array, no markdown fences.`;
     { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}` },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    const match = result.match(/\[[\s\S]*\]/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse comic recommendations');
-  }
+  return extractJSON<ComicCombo[]>(result);
 }
 
 // ─── Step 3: Generate Storyboard ──────────────────────────────────────────────
@@ -218,13 +273,7 @@ Return ONLY the JSON object, no markdown fences.`;
     { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    const match = result.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse storyboard');
-  }
+  return extractJSON<Storyboard>(result);
 }
 
 // ─── Step 5: Build Final Prompt for a Page ────────────────────────────────────

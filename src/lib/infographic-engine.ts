@@ -32,6 +32,72 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
   return data.choices[0].message.content;
 }
 
+// ─── Robust JSON extraction ──────────────────────────────────────────────────
+
+function extractJSON<T>(raw: string): T {
+  let text = raw.trim();
+
+  // Strip markdown code fences
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
+  }
+
+  // Try direct parse first
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Fall through to extraction
+  }
+
+  // Scan for balanced braces/brackets (handles strings with nested quotes)
+  const tryExtract = (open: string, close: string): string | null => {
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+
+      if (ch === open) {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (ch === close) {
+        depth--;
+        if (depth === 0 && start >= 0) return text.slice(start, i + 1);
+      }
+    }
+    return null;
+  };
+
+  const objMatch = tryExtract('{', '}');
+  if (objMatch) {
+    try { return JSON.parse(objMatch) as T; } catch {}
+  }
+
+  const arrMatch = tryExtract('[', ']');
+  if (arrMatch) {
+    try { return JSON.parse(arrMatch) as T; } catch {}
+  }
+
+  const objRegex = text.match(/\{[\s\S]*\}/);
+  if (objRegex) {
+    try { return JSON.parse(objRegex[0]) as T; } catch {}
+  }
+
+  const arrRegex = text.match(/\[[\s\S]*\]/);
+  if (arrRegex) {
+    try { return JSON.parse(arrRegex[0]) as T; } catch {}
+  }
+
+  throw new Error(`Failed to parse JSON from LLM response. First 200 chars: ${text.slice(0, 200)}`);
+}
+
 // ─── Step 1: Analyze Content ──────────────────────────────────────────────────
 
 export interface ContentAnalysis {
@@ -47,9 +113,9 @@ export interface ContentAnalysis {
 export async function analyzeContent(userInput: string): Promise<ContentAnalysis> {
   const systemPrompt = `You are a content analyst. Analyze the given content and return a JSON object with these fields:
 - topic: main topic (in the content's language)
-- dataType: data type (e.g., "步骤流程", "对比数据", "概念关系", "时间线", "统计指标")
-- complexity: complexity level (简单/中等/复杂)
-- tone: content tone (e.g., "专业", "教育", "轻松", "技术")
+- dataType: data type (e.g., "process", "comparison", "concept", "timeline", "stats")
+- complexity: complexity level (simple/medium/complex)
+- tone: content tone (e.g., "professional", "educational", "casual", "technical")
 - audience: target audience
 - sourceLanguage: detected language (zh/en/ja/etc)
 - keyPoints: array of 3-8 key points extracted from the content
@@ -61,14 +127,7 @@ Return ONLY the JSON object, no markdown fences.`;
     { role: 'user', content: userInput },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    // Fallback: try to extract JSON from the response
-    const match = result.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse analysis result');
-  }
+  return extractJSON<ContentAnalysis>(result);
 }
 
 // ─── Step 2: Generate Structured Content ──────────────────────────────────────
@@ -108,7 +167,7 @@ Return a JSON object with these fields:
 - textLabels: array of all text labels that should appear on the infographic (in ${analysis.sourceLanguage})
 
 Rules:
-- Preserve source data faithfully — no summarization or rephrasing
+- Preserve source data faithfully, no summarization or rephrasing
 - Strip any credentials, API keys, tokens, or secrets
 - All text in ${analysis.sourceLanguage}
 
@@ -119,13 +178,7 @@ Return ONLY the JSON object, no markdown fences.`;
     { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    const match = result.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse structured content');
-  }
+  return extractJSON<StructuredContent>(result);
 }
 
 // ─── Step 3: Recommend Combinations ───────────────────────────────────────────
@@ -142,10 +195,10 @@ export async function recommendCombinations(
   analysis: ContentAnalysis,
   structured: StructuredContent,
 ): Promise<LayoutStyleCombo[]> {
-  const layoutOptions = INFOGRAPHIC_LAYOUTS.map(l => `${l.id}: ${l.name} — ${l.bestFor}`).join('\n');
-  const styleOptions = INFOGRAPHIC_STYLES.map(s => `${s.id}: ${s.name} — ${s.description}`).join('\n');
+  const layoutOptions = INFOGRAPHIC_LAYOUTS.map(l => `${l.id}: ${l.name} - ${l.bestFor}`).join('\n');
+  const styleOptions = INFOGRAPHIC_STYLES.map(s => `${s.id}: ${s.name} - ${s.description}`).join('\n');
 
-  const systemPrompt = `You are an infographic design consultant. Based on the content analysis and structured content, recommend 3-5 layout×style combinations.
+  const systemPrompt = `You are an infographic design consultant. Based on the content analysis and structured content, recommend 3-5 layout x style combinations.
 
 Available layouts:
 ${layoutOptions}
@@ -160,7 +213,7 @@ Return a JSON array of objects with:
 - styleName: style display name
 - rationale: brief explanation of why this combination fits the content (in the content's language)
 
-Consider: data structure → matching layout, content tone → matching style, audience expectations.
+Consider: data structure to matching layout, content tone to matching style, audience expectations.
 
 Return ONLY the JSON array, no markdown fences.`;
 
@@ -169,13 +222,7 @@ Return ONLY the JSON array, no markdown fences.`;
     { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nStructured content:\n${JSON.stringify(structured, null, 2)}` },
   ]);
 
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    const match = result.match(/\[[\s\S]*\]/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse recommendations');
-  }
+  return extractJSON<LayoutStyleCombo[]>(result);
 }
 
 // ─── Step 5: Generate Final Prompt ────────────────────────────────────────────
@@ -194,7 +241,6 @@ export async function buildInfographicPrompt(
     throw new Error(`Unknown layout or style: ${layoutId} / ${styleId}`);
   }
 
-  // Build the content section
   const contentSection = [
     `# ${structured.title}`,
     '',
@@ -205,7 +251,6 @@ export async function buildInfographicPrompt(
 
   const textLabels = structured.textLabels.join(', ');
 
-  // Fill in the base prompt template
   let prompt = INFOGRAPHIC_BASE_PROMPT
     .replace('{{LAYOUT}}', layout.name)
     .replace('{{STYLE}}', style.name)

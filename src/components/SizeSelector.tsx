@@ -14,23 +14,22 @@ export default function SizeSelector({ selected, onChange, showKeepOriginal }: S
     : SIZE_OPTIONS.filter((s) => s.id !== 'none');
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        尺寸
-      </label>
+    <div>
+      <label className="field-label">尺寸</label>
       <div className="grid grid-cols-4 gap-2">
-        {sizes.map((size) => (
+        {sizes.map((size, i) => (
           <button
             key={size.id}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selected === size.id
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            className={`px-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 stagger-in ${
+              selected === size.id ? 'option-chip-active' : 'option-chip'
             }`}
+            style={{ animationDelay: `${i * 0.03}s` }}
             onClick={() => onChange(size.id)}
           >
             <div>{size.label}</div>
-            <div className="text-xs opacity-70">{size.ratio}</div>
+            <div className={`text-[10px] mt-0.5 font-mono ${selected === size.id ? 'opacity-70' : 'opacity-40'}`}>
+              {size.ratio}
+            </div>
           </button>
         ))}
       </div>

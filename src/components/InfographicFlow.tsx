@@ -37,13 +37,12 @@ export default function InfographicFlow() {
 
   const needsRecommend = layout === '__recommend__' || style === '__recommend__';
 
-  // ─── Done ─────────────────────────────────────
   if (step === 'done') {
     return (
       <div className="space-y-4">
         <ResultDisplay imageUrl={imageUrl} error={error} prompt={fullPrompt} />
         <button
-          className="w-full px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+          className="option-chip w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
           onClick={() => {
             setStep('input');
             setLayout('__recommend__');
@@ -60,51 +59,48 @@ export default function InfographicFlow() {
     );
   }
 
-  // ─── Recommending spinner ─────────────────────
   if (step === 'recommending') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">AI 正在分析内容并推荐设计方案...</p>
+        <div className="spinner-ring mb-5" />
+        <p className="shimmer-text text-sm font-medium">AI 正在分析内容并推荐设计方案</p>
       </div>
     );
   }
 
-  // ─── Generating spinner (direct, no combos) ──
   if (step === 'generating' && combos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">AI 正在结构化内容并生成信息图...</p>
+        <div className="spinner-ring mb-5" />
+        <p className="shimmer-text text-sm font-medium">AI 正在结构化内容并生成信息图</p>
       </div>
     );
   }
 
-  // ─── Confirm (recommendation results) ─────────
   if (step === 'confirm' || step === 'generating') {
     const isGenerating = step === 'generating';
     return (
-      <div className="space-y-4">
-        <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-          🎨 AI 根据内容推荐了以下方案，选择一个后生成：
+      <div className="space-y-4 fade-in-up">
+        <div className="rounded-xl p-4 text-sm text-violet-300 bg-violet-500/5 border border-violet-500/15">
+          <span className="mr-1.5">🎨</span>
+          AI 根据内容推荐了以下方案，选择一个后生成：
         </div>
 
         <div className="space-y-2">
           {combos.map((combo, i) => (
             <button
               key={i}
-              className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                selectedCombo === i
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              className={`w-full text-left px-4 py-3.5 rounded-xl transition-all duration-250 stagger-in ${
+                selectedCombo === i ? 'option-chip-active' : 'option-chip'
               }`}
+              style={{ animationDelay: `${i * 0.05}s` }}
               onClick={() => setSelectedCombo(i)}
               disabled={isGenerating}
             >
-              <div className="font-medium">
-                {combo.layoutName} × {combo.styleName}
+              <div className="font-medium text-sm">
+                {combo.layoutName} <span className="text-gray-500 mx-1">×</span> {combo.styleName}
               </div>
-              <div className={`text-sm ${selectedCombo === i ? 'opacity-80' : 'opacity-60'}`}>
+              <div className={`text-xs mt-1 ${selectedCombo === i ? 'opacity-70' : 'opacity-50'}`}>
                 {combo.rationale}
               </div>
             </button>
@@ -112,15 +108,13 @@ export default function InfographicFlow() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
+          <label className="field-label">宽高比</label>
           <div className="grid grid-cols-3 gap-2">
             {ASPECTS.map((a) => (
               <button
                 key={a.id}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  aspect === a.id
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 ${
+                  aspect === a.id ? 'option-chip-active' : 'option-chip'
                 }`}
                 onClick={() => setAspect(a.id)}
                 disabled={isGenerating}
@@ -158,10 +152,10 @@ export default function InfographicFlow() {
           disabled={false}
           label="确认生成"
         />
-        {error && <div className="text-red-500 text-sm">{error}</div>}
+        {error && <div className="text-red-400 text-sm">{error}</div>}
 
         <button
-          className="w-full text-sm text-gray-400 hover:text-gray-600"
+          className="w-full text-sm text-gray-500 hover:text-gray-300 transition-colors"
           onClick={() => { setStep('input'); setCombos([]); }}
           disabled={isGenerating}
         >
@@ -171,7 +165,6 @@ export default function InfographicFlow() {
     );
   }
 
-  // ─── Input ────────────────────────────────────
   const handleGenerate = async () => {
     setError(null);
 
@@ -195,9 +188,8 @@ export default function InfographicFlow() {
       return;
     }
 
-    // Direct generate
     setStep('generating');
-    setCombos([]); // ensure combos is empty so the generating spinner shows
+    setCombos([]);
     try {
       const res = await fetch('/api/infographic/generate', {
         method: 'POST',
@@ -216,9 +208,10 @@ export default function InfographicFlow() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-        💡 输入主题内容，选择布局和风格（可选「请你推荐」），AI 自动结构化内容并生成专业信息图
+    <div className="space-y-5">
+      <div className="rounded-xl p-4 text-sm text-cyan-300 bg-cyan-500/5 border border-cyan-500/15">
+        <span className="mr-1.5">💡</span>
+        输入主题内容，选择布局和风格（可选「请你推荐」），AI 自动结构化内容并生成专业信息图
       </div>
 
       <PromptInput value={prompt} onChange={setPrompt} placeholder="输入要制作信息图的主题或内容..." />
@@ -226,16 +219,14 @@ export default function InfographicFlow() {
       <LayoutSelector selected={layout} onChange={setLayout} />
       <InfoStyleSelector selected={style} onChange={setStyle} />
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
+      <div>
+        <label className="field-label">宽高比</label>
         <div className="grid grid-cols-3 gap-2">
           {ASPECTS.map((a) => (
             <button
               key={a.id}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                aspect === a.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 ${
+                aspect === a.id ? 'option-chip-active' : 'option-chip'
               }`}
               onClick={() => setAspect(a.id)}
             >
@@ -251,7 +242,7 @@ export default function InfographicFlow() {
         disabled={!prompt.trim()}
         label={needsRecommend ? '获取推荐方案' : '生成信息图'}
       />
-      {error && <div className="text-red-500 text-sm">{error}</div>}
+      {error && <div className="text-red-400 text-sm">{error}</div>}
     </div>
   );
 }

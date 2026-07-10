@@ -48,7 +48,7 @@ export default function ComicFlow() {
   const needsRecommend = art === '__recommend__' || tone === '__recommend__' || layout === '__recommend__';
 
   const ART_STYLES = [
-    { id: '__recommend__', label: '🎲 请你推荐' },
+    { id: '__recommend__', label: '请你推荐' },
     { id: 'ligne-claire', label: '清线' },
     { id: 'manga', label: '漫画' },
     { id: 'realistic', label: '写实' },
@@ -58,7 +58,7 @@ export default function ComicFlow() {
   ];
 
   const TONES = [
-    { id: '__recommend__', label: '🎲 请你推荐' },
+    { id: '__recommend__', label: '请你推荐' },
     { id: 'neutral', label: '中性' },
     { id: 'warm', label: '温暖' },
     { id: 'dramatic', label: '戏剧' },
@@ -69,7 +69,7 @@ export default function ComicFlow() {
   ];
 
   const LAYOUTS = [
-    { id: '__recommend__', label: '🎲 请你推荐' },
+    { id: '__recommend__', label: '请你推荐' },
     { id: 'standard', label: '标准' },
     { id: 'cinematic', label: '电影' },
     { id: 'dense', label: '密集' },
@@ -105,7 +105,6 @@ export default function ComicFlow() {
       return;
     }
 
-    // Direct generate
     setStep('generating');
     setCombos([]);
     try {
@@ -166,27 +165,26 @@ export default function ComicFlow() {
     setError(null);
   };
 
-  // ─── Done ─────────────────────────────────────
   if (step === 'done') {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+      <div className="space-y-5">
+        <h3 className="text-lg font-bold text-violet-300">{title}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {pages.map((page) => (
-            <div key={page.pageNumber} className="space-y-2">
-              <div className="text-sm font-medium text-gray-600">
+          {pages.map((page, i) => (
+            <div key={page.pageNumber} className="space-y-2 fade-in-up" style={{ animationDelay: `${i * 0.1}s` }}>
+              <div className="text-sm font-medium text-gray-400">
                 {page.pageNumber === 1 ? '封面' : `第 ${page.pageNumber} 页`} — {page.title}
               </div>
               <img
                 src={page.imageUrl}
                 alt={page.title}
-                className="w-full rounded-lg border border-gray-200"
+                className="w-full rounded-xl border border-white/10 shadow-lg shadow-violet-500/5"
               />
             </div>
           ))}
         </div>
         <button
-          className="w-full px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+          className="option-chip w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
           onClick={handleReset}
         >
           ↻ 重新制作
@@ -195,50 +193,47 @@ export default function ComicFlow() {
     );
   }
 
-  // ─── Recommending spinner ─────────────────────
   if (step === 'recommending') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">AI 正在分析内容并推荐漫画风格...</p>
+        <div className="spinner-ring mb-5" />
+        <p className="shimmer-text text-sm font-medium">AI 正在分析内容并推荐漫画风格</p>
       </div>
     );
   }
 
-  // ─── Generating spinner ───────────────────────
   if (step === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4" />
-        <p className="text-gray-500">AI 正在编写剧本并生成漫画页面（可能需要一些时间）...</p>
+        <div className="spinner-ring mb-5" />
+        <p className="shimmer-text text-sm font-medium">AI 正在编写剧本并生成漫画页面</p>
       </div>
     );
   }
 
-  // ─── Confirm (recommendation results) ─────────
   if (step === 'confirm') {
     return (
-      <div className="space-y-4">
-        <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-          🎨 AI 根据内容推荐了以下漫画风格方案，选择一个后生成：
+      <div className="space-y-4 fade-in-up">
+        <div className="rounded-xl p-4 text-sm text-violet-300 bg-violet-500/5 border border-violet-500/15">
+          <span className="mr-1.5">🎨</span>
+          AI 根据内容推荐了以下漫画风格方案，选择一个后生成：
         </div>
 
         <div className="space-y-2">
           {combos.map((combo, i) => (
             <button
               key={i}
-              className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                selectedCombo === i
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              className={`w-full text-left px-4 py-3.5 rounded-xl transition-all duration-250 stagger-in ${
+                selectedCombo === i ? 'option-chip-active' : 'option-chip'
               }`}
+              style={{ animationDelay: `${i * 0.05}s` }}
               onClick={() => setSelectedCombo(i)}
             >
-              <div className="font-medium">
-                {combo.artName} × {combo.toneName} × {combo.layoutName}
-                {combo.presetId && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-500 text-white">预设: {combo.presetId}</span>}
+              <div className="font-medium text-sm">
+                {combo.artName} <span className="text-gray-500 mx-1">×</span> {combo.toneName} <span className="text-gray-500 mx-1">×</span> {combo.layoutName}
+                {combo.presetId && <span className="ml-2 text-[10px] px-2 py-0.5 rounded bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">预设: {combo.presetId}</span>}
               </div>
-              <div className={`text-sm ${selectedCombo === i ? 'opacity-80' : 'opacity-60'}`}>
+              <div className={`text-xs mt-1 ${selectedCombo === i ? 'opacity-70' : 'opacity-50'}`}>
                 {combo.rationale}
               </div>
             </button>
@@ -246,15 +241,13 @@ export default function ComicFlow() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
+          <label className="field-label">宽高比</label>
           <div className="grid grid-cols-3 gap-2">
             {ASPECTS.map((a) => (
               <button
                 key={a.id}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  aspect === a.id
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 ${
+                  aspect === a.id ? 'option-chip-active' : 'option-chip'
                 }`}
                 onClick={() => setAspect(a.id)}
               >
@@ -270,10 +263,10 @@ export default function ComicFlow() {
           disabled={false}
           label="确认生成"
         />
-        {error && <div className="text-red-500 text-sm">{error}</div>}
+        {error && <div className="text-red-400 text-sm">{error}</div>}
 
         <button
-          className="w-full text-sm text-gray-400 hover:text-gray-600"
+          className="w-full text-sm text-gray-500 hover:text-gray-300 transition-colors"
           onClick={() => { setStep('input'); setCombos([]); }}
         >
           ← 返回重新选择
@@ -282,24 +275,22 @@ export default function ComicFlow() {
     );
   }
 
-  // ─── Input ────────────────────────────────────
   const renderSelector = (
     label: string,
     options: { id: string; label: string }[],
     value: string,
     setter: (v: string) => void,
   ) => (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <div>
+      <label className="field-label">{label}</label>
       <div className="flex flex-wrap gap-2">
-        {options.map((opt) => (
+        {options.map((opt, i) => (
           <button
             key={opt.id}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              value === opt.id
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-250 stagger-in ${
+              value === opt.id ? 'option-chip-active' : 'option-chip'
             }`}
+            style={{ animationDelay: `${i * 0.02}s` }}
             onClick={() => setter(opt.id)}
           >
             {opt.label}
@@ -310,9 +301,10 @@ export default function ComicFlow() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-        💡 输入主题内容，选择画风/色调/排版（可选「请你推荐」），AI 自动编写剧本并生成多页漫画
+    <div className="space-y-5">
+      <div className="rounded-xl p-4 text-sm text-cyan-300 bg-cyan-500/5 border border-cyan-500/15">
+        <span className="mr-1.5">💡</span>
+        输入主题内容，选择画风/色调/排版（可选「请你推荐」），AI 自动编写剧本并生成多页漫画
       </div>
 
       <PromptInput value={prompt} onChange={setPrompt} placeholder="输入要制作漫画的主题或内容，例如：图灵的故事、量子力学入门..." />
@@ -321,16 +313,14 @@ export default function ComicFlow() {
       {renderSelector('色调', TONES, tone, setTone)}
       {renderSelector('排版', LAYOUTS, layout, setLayout)}
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">宽高比</label>
+      <div>
+        <label className="field-label">宽高比</label>
         <div className="grid grid-cols-3 gap-2">
           {ASPECTS.map((a) => (
             <button
               key={a.id}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                aspect === a.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 ${
+                aspect === a.id ? 'option-chip-active' : 'option-chip'
               }`}
               onClick={() => setAspect(a.id)}
             >
@@ -346,7 +336,7 @@ export default function ComicFlow() {
         disabled={!prompt.trim()}
         label={needsRecommend ? '获取推荐方案' : '生成漫画'}
       />
-      {error && <div className="text-red-500 text-sm">{error}</div>}
+      {error && <div className="text-red-400 text-sm">{error}</div>}
     </div>
   );
 }

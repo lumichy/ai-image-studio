@@ -20,30 +20,33 @@ export default function ImageUpload({ onUpload }: ImageUploadProps) {
   };
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        参考图片
-      </label>
+    <div>
+      <label className="field-label">参考图片</label>
       {preview ? (
-        <div className="relative">
+        <div className="relative group">
           <img
             src={preview}
             alt="参考图预览"
-            className="w-full max-h-48 object-contain rounded-lg border border-gray-200"
+            className="w-full max-h-48 object-contain rounded-xl border border-white/10"
           />
-          <button
-            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
-            onClick={() => {
-              setPreview(null);
-              onUpload('');
-            }}
-          >
-            ×
-          </button>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+            <button
+              className="px-3 py-1.5 bg-red-500/80 text-white rounded-lg text-xs font-medium backdrop-blur hover:bg-red-500 transition-colors"
+              onClick={() => {
+                setPreview(null);
+                onUpload('');
+              }}
+            >
+              ✕ 移除图片
+            </button>
+          </div>
         </div>
       ) : (
-        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-          <span className="text-gray-400">点击上传参考图片</span>
+        <label className="upload-zone flex flex-col items-center justify-center w-full h-32 rounded-xl cursor-pointer gap-2">
+          <svg className="w-7 h-7 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          <span className="text-sm text-gray-500">点击上传参考图片</span>
           <input
             type="file"
             accept="image/*"

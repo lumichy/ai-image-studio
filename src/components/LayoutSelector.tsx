@@ -6,7 +6,7 @@ interface LayoutSelectorProps {
 }
 
 const LAYOUTS = [
-  { id: '__recommend__', label: '🎲 请你推荐', desc: 'AI 智能匹配' },
+  { id: '__recommend__', label: '请你推荐', desc: 'AI 智能匹配' },
   { id: 'bento-grid', label: '便当网格', desc: '多主题概览' },
   { id: 'linear-progression', label: '线性递进', desc: '时间线/流程' },
   { id: 'binary-comparison', label: '二元对比', desc: 'A vs B' },
@@ -32,24 +32,21 @@ const LAYOUTS = [
 
 export default function LayoutSelector({ selected, onChange }: LayoutSelectorProps) {
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        布局
-      </label>
-      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-        {LAYOUTS.map((layout) => (
+    <div>
+      <label className="field-label">布局</label>
+      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+        {LAYOUTS.map((layout, i) => (
           <button
             key={layout.id}
-            className={`px-2 py-2 rounded-lg text-sm font-medium transition-colors text-center ${
-              selected === layout.id
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            className={`px-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 text-center stagger-in ${
+              selected === layout.id ? 'option-chip-active' : 'option-chip'
             }`}
+            style={{ animationDelay: `${i * 0.02}s` }}
             onClick={() => onChange(layout.id)}
             title={layout.desc}
           >
             <div>{layout.label}</div>
-            <div className={`text-xs ${selected === layout.id ? 'opacity-80' : 'opacity-50'}`}>
+            <div className={`text-[10px] mt-0.5 font-mono ${selected === layout.id ? 'opacity-70' : 'opacity-40'}`}>
               {layout.desc}
             </div>
           </button>

@@ -15,7 +15,6 @@ import { GenerateMode } from '@/types';
 export default function Home() {
   const [mode, setMode] = useState<GenerateMode>('text-to-image');
 
-  // Text-to-image / Image-to-image state
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState('anime');
   const [size, setSize] = useState('square');
@@ -52,7 +51,7 @@ export default function Home() {
         endpoint = '/api/generate/image-to-image';
         body = { prompt, referenceImage, style, size };
       } else {
-        return; // infographic mode handles its own flow
+        return;
       }
 
       const res = await fetch(endpoint, {
@@ -84,49 +83,76 @@ export default function Home() {
   const isImageMode = mode === 'image-to-image';
   const isInfographicMode = mode === 'infographic';
   const isComicMode = mode === 'comic';
-  const isSimpleMode = mode === 'text-to-image' || mode === 'image-to-image';
 
   return (
-    <main className="container mx-auto px-4 py-8 max-w-6xl">
-      <h1 className="text-3xl font-bold text-center mb-2">AI 生图工作室</h1>
-      <p className="text-center text-gray-400 text-sm mb-8">Powered by Agnes AI</p>
-
-      <ModeSwitch mode={mode} onChange={handleModeChange} />
-
-      {isInfographicMode ? (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <InfographicFlow />
+    <main className="relative z-10 min-h-screen px-4 py-10 md:py-16">
+      {/* ─── Header ─────────────────────────────── */}
+      <header className="max-w-6xl mx-auto mb-10 text-center fade-in-up">
+        <div className="inline-flex items-center gap-3 mb-3">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 glow-pulse" />
+          <span className="text-xs font-mono tracking-widest text-gray-500 uppercase">Agnes AI · Live</span>
         </div>
-      ) : isComicMode ? (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <ComicFlow />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 左侧：参数面板 */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <PromptInput value={prompt} onChange={setPrompt} />
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+          <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+            AI 生图工作室
+          </span>
+        </h1>
+        <p className="mt-3 text-sm text-gray-500 font-light tracking-wide">
+          文生图 · 图生图 · 信息图 · 知识漫画
+        </p>
+      </header>
 
-            {isImageMode && (
-              <ImageUpload onUpload={setReferenceImage} />
-            )}
+      {/* ─── Mode Switch ────────────────────────── */}
+      <div className="max-w-6xl mx-auto mb-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <ModeSwitch mode={mode} onChange={handleModeChange} />
+      </div>
 
-            <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
-            <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
+      {/* ─── Content ───────────────────────────── */}
+      <div className="max-w-6xl mx-auto fade-in-up" style={{ animationDelay: '0.2s' }}>
+        {isInfographicMode ? (
+          <div className="glass-card p-6 md:p-8">
+            <InfographicFlow />
+          </div>
+        ) : isComicMode ? (
+          <div className="glass-card p-6 md:p-8">
+            <ComicFlow />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Control Panel */}
+          <div className="glass-card p-6 md:p-8">
+            <div className="space-y-5">
+              <PromptInput value={prompt} onChange={setPrompt} />
 
-            <GenerateButton
-              onClick={handleGenerate}
-              loading={loading}
-              disabled={!canGenerate}
-            />
+              {isImageMode && (
+                <ImageUpload onUpload={setReferenceImage} />
+              )}
+
+              <StyleSelector selected={style} onChange={setStyle} showKeepOriginal={isImageMode} />
+              <SizeSelector selected={size} onChange={setSize} showKeepOriginal={isImageMode} />
+
+              <GenerateButton
+                onClick={handleGenerate}
+                loading={loading}
+                disabled={!canGenerate}
+              />
+            </div>
           </div>
 
-          {/* 右侧：结果区 */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Result Panel */}
+          <div className="glass-card p-6 md:p-8 flex flex-col">
             <ResultDisplay imageUrl={imageUrl} error={error} prompt={displayPrompt} />
           </div>
         </div>
-      )}
+        )}
+      </div>
+
+      {/* ─── Footer ────────────────────────────── */}
+      <footer className="max-w-6xl mx-auto mt-16 text-center">
+        <p className="text-xs text-gray-600 font-mono">
+          Powered by Agnes AI · Built with Next.js
+        </p>
+      </footer>
     </main>
   );
 }

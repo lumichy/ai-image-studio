@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (!storyboard.pages || !Array.isArray(storyboard.pages)) {
       return NextResponse.json(
-        { error: 'Storyboard 生成异常：缺少 pages 数据' },
+        { error: `Storyboard 生成异常：缺少 pages 数据。title=${storyboard.title ?? 'N/A'}, keys=${Object.keys(storyboard).join(',')}` },
         { status: 500 },
       );
     }

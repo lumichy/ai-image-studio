@@ -30,7 +30,7 @@ async function callLLM(messages: ChatMessage[]): Promise<string> {
       model: 'agnes-2.0-flash',
       messages,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 8192,
     }),
   });
 
@@ -273,7 +273,23 @@ Return ONLY the JSON object, no markdown fences.`;
     { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
   ]);
 
-  return extractJSON<Storyboard>(result);
+  const storyboard = extractJSON<Storyboard>(result);
+
+  // Defensive validation
+  if (!storyboard.pages || !Array.isArray(storyboard.pages) || storyboard.pages.length === 0) {
+    // Try to find pages under alternative keys
+    const raw = result.trim();
+    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const text = fenceMatch ? fenceMatch[1].trim() : raw;
+    const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const pages = parsed.pages || parsed.Pages || parsed.page || parsed.Page;
+    if (pages && Array.isArray(pages) && pages.length > 0) {
+      return { ...parsed, pages } as Storyboard;
+    }
+    throw new Error(`Storyboard missing pages field. LLM returned: ${text.slice(0, 300)}`);
+  }
+
+  return storyboard;
 }
 
 // ─── Step 5: Build Final Prompt for a Page ────────────────────────────────────

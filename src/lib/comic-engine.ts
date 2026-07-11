@@ -19,20 +19,36 @@ interface ChatMessage {
   content: string;
 }
 
-async function callLLM(messages: ChatMessage[]): Promise<string> {
-  const response = await fetch(`${LLM_API_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${LLM_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'agnes-2.0-flash',
-      messages,
-      temperature: 0.7,
-      max_tokens: 8192,
-    }),
-  });
+async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; timeoutMs?: number }): Promise<string> {
+  const maxTokens = options?.maxTokens ?? 8192;
+  const timeoutMs = options?.timeoutMs ?? 90_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`${LLM_API_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'agnes-2.0-flash',
+        messages,
+        temperature: 0.7,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`LLM API timeout after ${timeoutMs / 1000}s`);
+    }
+    throw err;
+  }
+  clearTimeout(timer);
 
   if (!response.ok) {
     const error = await response.text();
@@ -134,10 +150,13 @@ export async function analyzeComicContent(userInput: string): Promise<ComicAnaly
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userInput },
-  ]);
+  const result = await callLLM(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userInput },
+    ],
+    { maxTokens: 2048, timeoutMs: 30_000 },
+  );
 
   return extractJSON<ComicAnalysis>(result);
 }
@@ -191,10 +210,13 @@ Consider: content genre → matching art style, tone → matching mood, audience
 
 Return ONLY the JSON array, no markdown fences.`;
 
-  const result = await callLLM([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}` },
-  ]);
+  const result = await callLLM(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}` },
+    ],
+    { maxTokens: 4096, timeoutMs: 60_000 },
+  );
 
   return extractJSON<ComicCombo[]>(result);
 }
@@ -268,10 +290,13 @@ Return a JSON object with:
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
-  ]);
+  const result = await callLLM(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
+    ],
+    { maxTokens: 8192, timeoutMs: 120_000 },
+  );
 
   const storyboard = extractJSON<Storyboard>(result);
 

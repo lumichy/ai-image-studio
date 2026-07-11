@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
             Authorization: `Bearer ${AGNES_API_KEY}`,
           },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(120_000),
         });
 
         if (!response.ok) {

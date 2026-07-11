@@ -141,6 +141,8 @@ export default function InfographicFlow() {
             setError(null);
             try {
               const combo = combos[selectedCombo];
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 180_000);
               const res = await fetch('/api/infographic/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -152,7 +154,9 @@ export default function InfographicFlow() {
                   analysis: cached?.analysis,
                   structured: cached?.structured,
                 }),
+                signal: controller.signal,
               });
+              clearTimeout(timer);
               const data = await res.json();
               if (!res.ok) throw new Error(data.error || t('error.generate'));
               setImageUrl(data.imageUrl);
@@ -188,11 +192,15 @@ export default function InfographicFlow() {
     if (needsRecommend) {
       setStep('recommending');
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120_000);
         const res = await fetch('/api/infographic/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt }),
+          signal: controller.signal,
         });
+        clearTimeout(timer);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || t('error.recommend'));
         setCombos(data.combos);
@@ -209,11 +217,15 @@ export default function InfographicFlow() {
     setStep('generating');
     setCombos([]);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 180_000);
       const res = await fetch('/api/infographic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, layoutId: layout, styleId: style, aspectRatio: aspect }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('error.generate'));
       setImageUrl(data.imageUrl);

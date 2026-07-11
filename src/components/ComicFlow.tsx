@@ -89,11 +89,15 @@ export default function ComicFlow() {
     if (needsRecommend) {
       setStep('recommending');
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120_000);
         const res = await fetch('/api/comic/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt }),
+          signal: controller.signal,
         });
+        clearTimeout(timer);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || t('error.recommend'));
         if (!data.combos || !Array.isArray(data.combos)) {
@@ -113,11 +117,15 @@ export default function ComicFlow() {
     setStep('generating');
     setCombos([]);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 180_000);
       const res = await fetch('/api/comic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, artId: art, toneId: tone, layoutId: layout, aspectRatio: aspect }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('error.generate'));
       if (!data.pages || !Array.isArray(data.pages)) {
@@ -137,11 +145,15 @@ export default function ComicFlow() {
     setStep('generating');
     setError(null);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 180_000);
       const res = await fetch('/api/comic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, artId: combo.artId, toneId: combo.toneId, layoutId: combo.layoutId, aspectRatio: aspect, analysis: cachedAnalysis }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('error.generate'));
       if (!data.pages || !Array.isArray(data.pages)) {

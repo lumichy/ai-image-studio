@@ -142,7 +142,7 @@ export default function InfographicFlow() {
             try {
               const combo = combos[selectedCombo];
               const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), 180_000);
+              const timer = setTimeout(() => controller.abort(), 300_000);
               const res = await fetch('/api/infographic/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -193,7 +193,7 @@ export default function InfographicFlow() {
       setStep('recommending');
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 120_000);
+        const timer = setTimeout(() => controller.abort(), 200_000);
         const res = await fetch('/api/infographic/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,7 +218,7 @@ export default function InfographicFlow() {
     setCombos([]);
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 180_000);
+      const timer = setTimeout(() => controller.abort(), 300_000);
       const res = await fetch('/api/infographic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

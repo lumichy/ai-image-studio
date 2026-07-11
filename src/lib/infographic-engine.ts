@@ -8,44 +8,64 @@ interface ChatMessage {
   content: string;
 }
 
-async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; timeoutMs?: number }): Promise<string> {
+async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; timeoutMs?: number; retries?: number }): Promise<string> {
   const maxTokens = options?.maxTokens ?? 8192;
   const timeoutMs = options?.timeoutMs ?? 90_000;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const maxRetries = options?.retries ?? 3;
 
-  let response: Response;
-  try {
-    response = await fetch(`${LLM_API_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${LLM_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'agnes-2.0-flash',
-        messages,
-        temperature: 0.7,
-        max_tokens: maxTokens,
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error(`LLM API timeout after ${timeoutMs / 1000}s`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(`${LLM_API_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${LLM_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'agnes-2.0-flash',
+          messages,
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`LLM API error: ${response.status} ${error}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content as string;
+
+      if (!content || content.trim().length === 0) {
+        throw new Error('LLM returned empty content (reasoning consumed all tokens)');
+      }
+
+      return content;
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isAbort = lastError.name === 'AbortError';
+      const isTimeout = lastError.message.includes('timeout');
+      const isEmpty = lastError.message.includes('empty content');
+
+      if (attempt < maxRetries && (isAbort || isTimeout || isEmpty)) {
+        console.log(`LLM attempt ${attempt}/${maxRetries} failed: ${lastError.message}. Retrying...`);
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+      throw lastError;
     }
-    throw err;
-  }
-  clearTimeout(timer);
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`LLM API error: ${response.status} ${error}`);
   }
 
-  const data = await response.json();
-  return data.choices[0].message.content;
+  throw lastError ?? new Error('LLM call failed after all retries');
 }
 
 // ─── Robust JSON extraction ──────────────────────────────────────────────────
@@ -143,7 +163,7 @@ Return ONLY the JSON object, no markdown fences.`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userInput },
     ],
-    { maxTokens: 2048, timeoutMs: 30_000 },
+    { maxTokens: 2048, timeoutMs: 60_000, retries: 3 },
   );
 
   return extractJSON<ContentAnalysis>(result);
@@ -197,7 +217,7 @@ Return ONLY the JSON object, no markdown fences.`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
     ],
-    { maxTokens: 4096, timeoutMs: 60_000 },
+    { maxTokens: 4096, timeoutMs: 90_000, retries: 3 },
   );
 
   return extractJSON<StructuredContent>(result);
@@ -244,7 +264,7 @@ Return ONLY the JSON array, no markdown fences.`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nStructured content:\n${JSON.stringify(structured, null, 2)}` },
     ],
-    { maxTokens: 4096, timeoutMs: 60_000 },
+    { maxTokens: 4096, timeoutMs: 90_000, retries: 3 },
   );
 
   return extractJSON<LayoutStyleCombo[]>(result);

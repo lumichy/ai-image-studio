@@ -19,16 +19,67 @@ interface ChatMessage {
   content: string;
 }
 
+// Non-streaming completion — used as a fallback when the streaming response
+// comes back empty (occasional upstream flakiness). Returns the answer text.
+async function nonStreamingComplete(
+  messages: ChatMessage[],
+  maxTokens: number,
+  timeoutMs: number,
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error('LLM 请求超时')), timeoutMs);
+
+  try {
+    const response = await fetch(`${LLM_API_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'agnes-2.0-flash',
+        messages,
+        temperature: 0.3,
+        max_tokens: maxTokens,
+        stream: false,
+        chat_template_kwargs: { enable_thinking: false },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`LLM API error: ${response.status} ${error}`);
+    }
+
+    const json = await response.json();
+    const msg = json.choices?.[0]?.message;
+    const content = (msg?.content || msg?.reasoning_content || '') as string;
+    // Diagnostic: if upstream returned an empty body, log the raw payload so
+    // we can see whether the answer landed in an unexpected field.
+    if (!content || !content.trim()) {
+      console.log('[nonStreamingComplete] EMPTY response:', JSON.stringify(json).slice(0, 1000));
+    }
+    return content;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; timeoutMs?: number; retries?: number }): Promise<string> {
   const maxTokens = options?.maxTokens ?? 8192;
-  const timeoutMs = options?.timeoutMs ?? 90_000;
+  const timeoutMs = options?.timeoutMs ?? 120_000;
   const maxRetries = options?.retries ?? 3;
 
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let abortedByTimer = false;
+    const timer = setTimeout(() => {
+      abortedByTimer = true;
+      controller.abort(new Error('LLM 请求超时'));
+    }, timeoutMs);
 
     try {
       const response = await fetch(`${LLM_API_URL}/chat/completions`, {
@@ -40,9 +91,14 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
         body: JSON.stringify({
           model: 'agnes-2.0-flash',
           messages,
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: maxTokens,
           stream: true,
+          // Disable the reasoning model's chain-of-thought: it otherwise dumps
+          // everything into reasoning_content (leaving content empty) and burns
+          // the whole token budget thinking, which makes the stream exceed the
+          // timeout. With thinking off, the answer goes straight to content.
+          chat_template_kwargs: { enable_thinking: false },
         }),
         signal: controller.signal,
       });
@@ -76,7 +132,11 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta;
+              // Reasoning models may place the answer in reasoning_content; fall back to it.
+              // Some providers also use `text`.
               if (delta?.content) fullContent += delta.content;
+              else if (delta?.reasoning_content) fullContent += delta.reasoning_content;
+              else if ((delta as { text?: string })?.text) fullContent += (delta as { text?: string }).text!;
               chunksReceived++;
             } catch {
               // Ignore malformed lines
@@ -87,6 +147,20 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
       clearTimeout(timer);
 
       if (!fullContent || fullContent.trim().length === 0) {
+        // Streaming returned nothing. The model intermittently streams an empty
+        // body on long prompts; a non-streaming call is far more reliable, so
+        // retry it a few times (and tolerate transient NS errors) before giving up.
+        let ns = '';
+        for (let nsAttempt = 1; nsAttempt <= 3; nsAttempt++) {
+          try {
+            ns = await nonStreamingComplete(messages, maxTokens, timeoutMs);
+          } catch (e) {
+            console.log(`NS fallback attempt ${nsAttempt} threw: ${e instanceof Error ? e.message : String(e)}`);
+            ns = '';
+          }
+          if (ns && ns.trim()) return ns;
+          if (nsAttempt < 3) await new Promise((r) => setTimeout(r, 1500));
+        }
         throw new Error('LLM returned empty content (reasoning consumed all tokens)');
       }
 
@@ -94,8 +168,20 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
     } catch (err) {
       clearTimeout(timer);
       lastError = err instanceof Error ? err : new Error(String(err));
-      const isAbort = lastError.name === 'AbortError';
-      const isTimeout = lastError.message.includes('timeout');
+      // Use controller.signal.aborted / abortedByTimer as the reliable signal:
+      // when we abort with a custom reason, undici may NOT throw an error whose
+      // name is 'AbortError', so relying on lastError.name would silently skip
+      // retries. The flag guarantees timeouts always retry.
+      const isAbort =
+        lastError.name === 'AbortError' ||
+        controller.signal.aborted ||
+        abortedByTimer;
+      const isTimeout =
+        abortedByTimer ||
+        controller.signal.aborted ||
+        lastError.name === 'AbortError' ||
+        lastError.message.toLowerCase().includes('timeout') ||
+        lastError.message.includes('超时');
       const isEmpty = lastError.message.includes('empty content');
 
       // Retry on timeout, abort, or empty content
@@ -105,11 +191,38 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
         await new Promise(r => setTimeout(r, 2000 * attempt));
         continue;
       }
+      // Surface a friendly, actionable message instead of the raw Undici
+      // "signal is aborted without reason" error.
+      if (isAbort || isTimeout) {
+        throw new Error(`LLM 请求超时，已重试 ${maxRetries} 次仍失败，请稍后重试`);
+      }
       throw lastError;
     }
   }
 
   throw lastError ?? new Error('LLM call failed after all retries');
+}
+
+// ─── Call LLM and parse JSON with retries ────────────────────────────────────
+
+async function callAndParse<T>(
+  messages: ChatMessage[],
+  parse: (raw: string) => T,
+  opts?: { maxTokens?: number; timeoutMs?: number; retries?: number },
+): Promise<T> {
+  const maxRetries = opts?.retries ?? 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const raw = await callLLM(messages, opts);
+    try {
+      return parse(raw);
+    } catch (err) {
+      lastError = err;
+      console.log(`JSON parse attempt ${attempt}/${maxRetries} failed: ${err instanceof Error ? err.message : String(err)}. Retrying...`);
+      if (attempt < maxRetries) await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
+  }
+  throw lastError ?? new Error('JSON parse failed after all retries');
 }
 
 // ─── Robust JSON extraction ──────────────────────────────────────────────────
@@ -203,15 +316,14 @@ export async function analyzeComicContent(userInput: string): Promise<ComicAnaly
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<ComicAnalysis>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userInput },
     ],
-    { maxTokens: 2048, timeoutMs: 60_000, retries: 3 },
+    extractJSON<ComicAnalysis>,
+    { maxTokens: 4096, timeoutMs: 120_000, retries: 3 },
   );
-
-  return extractJSON<ComicAnalysis>(result);
 }
 
 // ─── Step 2: Recommend Combinations ───────────────────────────────────────────
@@ -263,15 +375,14 @@ Consider: content genre → matching art style, tone → matching mood, audience
 
 Return ONLY the JSON array, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<ComicCombo[]>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}` },
     ],
-    { maxTokens: 4096, timeoutMs: 90_000, retries: 3 },
+    extractJSON<ComicCombo[]>,
+    { maxTokens: 4096, timeoutMs: 120_000, retries: 3 },
   );
-
-  return extractJSON<ComicCombo[]>(result);
 }
 
 // ─── Step 3: Generate Storyboard ──────────────────────────────────────────────
@@ -343,31 +454,29 @@ Return a JSON object with:
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<Storyboard>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
     ],
+    (raw) => {
+      const storyboard = extractJSON<Storyboard>(raw);
+      // Defensive validation: retry if pages missing by trying alternative keys
+      if (!storyboard.pages || !Array.isArray(storyboard.pages) || storyboard.pages.length === 0) {
+        const text = raw.trim();
+        const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const t = fenceMatch ? fenceMatch[1].trim() : text;
+        const parsed = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || t);
+        const pages = parsed.pages || parsed.Pages || parsed.page || parsed.Page;
+        if (pages && Array.isArray(pages) && pages.length > 0) {
+          return { ...parsed, pages } as Storyboard;
+        }
+        throw new Error(`Storyboard missing pages field. LLM returned: ${text.slice(0, 300)}`);
+      }
+      return storyboard;
+    },
     { maxTokens: 8192, timeoutMs: 150_000, retries: 2 },
   );
-
-  const storyboard = extractJSON<Storyboard>(result);
-
-  // Defensive validation
-  if (!storyboard.pages || !Array.isArray(storyboard.pages) || storyboard.pages.length === 0) {
-    // Try to find pages under alternative keys
-    const raw = result.trim();
-    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const text = fenceMatch ? fenceMatch[1].trim() : raw;
-    const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
-    const pages = parsed.pages || parsed.Pages || parsed.page || parsed.Page;
-    if (pages && Array.isArray(pages) && pages.length > 0) {
-      return { ...parsed, pages } as Storyboard;
-    }
-    throw new Error(`Storyboard missing pages field. LLM returned: ${text.slice(0, 300)}`);
-  }
-
-  return storyboard;
 }
 
 // ─── Step 5: Build Final Prompt for a Page ────────────────────────────────────

@@ -24,6 +24,15 @@ interface CachedData {
   structured: unknown;
 }
 
+function toFriendlyError(err: unknown, fallback: string): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (!msg) return fallback;
+  if (msg.includes('aborted') || msg.includes('signal') || msg.includes('timeout') || msg.includes('超时')) {
+    return '请求超时或服务处理时间过长，请稍后重试，或尝试更简短的主题';
+  }
+  return msg;
+}
+
 const ASPECT_KEYS: { id: string; labelKey: TranslationKey }[] = [
   { id: '16:9', labelKey: 'aspect.16:9' },
   { id: '9:16', labelKey: 'aspect.9:16' },
@@ -142,7 +151,7 @@ export default function InfographicFlow() {
             try {
               const combo = combos[selectedCombo];
               const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), 300_000);
+              const timer = setTimeout(() => controller.abort(new Error('请求超时')), 360_000);
               const res = await fetch('/api/infographic/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -165,7 +174,7 @@ export default function InfographicFlow() {
               setStyle(combo.styleId);
               setStep('done');
             } catch (err) {
-              setError(err instanceof Error ? err.message : t('error.generate'));
+              setError(toFriendlyError(err, t('error.generate')));
               setStep('confirm');
             }
           }}
@@ -193,7 +202,7 @@ export default function InfographicFlow() {
       setStep('recommending');
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 200_000);
+        const timer = setTimeout(() => controller.abort(new Error('请求超时')), 300_000);
         const res = await fetch('/api/infographic/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -208,7 +217,7 @@ export default function InfographicFlow() {
         setSelectedCombo(0);
         setStep('confirm');
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('error.recommend'));
+        setError(toFriendlyError(err, t('error.recommend')));
         setStep('input');
       }
       return;
@@ -218,7 +227,7 @@ export default function InfographicFlow() {
     setCombos([]);
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 300_000);
+      const timer = setTimeout(() => controller.abort(new Error('请求超时')), 360_000);
       const res = await fetch('/api/infographic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -232,7 +241,7 @@ export default function InfographicFlow() {
       setFullPrompt(data.fullPrompt);
       setStep('done');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('error.generate'));
+      setError(toFriendlyError(err, t('error.generate')));
       setStep('input');
     }
   };

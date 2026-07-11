@@ -90,7 +90,7 @@ export default function ComicFlow() {
       setStep('recommending');
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 200_000);
+        const timer = setTimeout(() => controller.abort(new Error('请求超时')), 400_000);
         const res = await fetch('/api/comic/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,7 +118,7 @@ export default function ComicFlow() {
     setCombos([]);
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 300_000);
+      const timer = setTimeout(() => controller.abort(new Error('请求超时')), 500_000);
       const res = await fetch('/api/comic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,7 +146,7 @@ export default function ComicFlow() {
     setError(null);
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 300_000);
+      const timer = setTimeout(() => controller.abort(new Error('请求超时')), 500_000);
       const res = await fetch('/api/comic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

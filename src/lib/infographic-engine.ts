@@ -8,16 +8,67 @@ interface ChatMessage {
   content: string;
 }
 
+// Non-streaming completion — used as a fallback when the streaming response
+// comes back empty (occasional upstream flakiness). Returns the answer text.
+async function nonStreamingComplete(
+  messages: ChatMessage[],
+  maxTokens: number,
+  timeoutMs: number,
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error('LLM 请求超时')), timeoutMs);
+
+  try {
+    const response = await fetch(`${LLM_API_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'agnes-2.0-flash',
+        messages,
+        temperature: 0.3,
+        max_tokens: maxTokens,
+        stream: false,
+        chat_template_kwargs: { enable_thinking: false },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`LLM API error: ${response.status} ${error}`);
+    }
+
+    const json = await response.json();
+    const msg = json.choices?.[0]?.message;
+    const content = (msg?.content || msg?.reasoning_content || '') as string;
+    // Diagnostic: if upstream returned an empty body, log the raw payload so
+    // we can see whether the answer landed in an unexpected field.
+    if (!content || !content.trim()) {
+      console.log('[nonStreamingComplete] EMPTY response:', JSON.stringify(json).slice(0, 1000));
+    }
+    return content;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; timeoutMs?: number; retries?: number }): Promise<string> {
   const maxTokens = options?.maxTokens ?? 8192;
-  const timeoutMs = options?.timeoutMs ?? 90_000;
+  const timeoutMs = options?.timeoutMs ?? 120_000;
   const maxRetries = options?.retries ?? 3;
 
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let abortedByTimer = false;
+    const timer = setTimeout(() => {
+      abortedByTimer = true;
+      controller.abort(new Error('LLM 请求超时'));
+    }, timeoutMs);
 
     try {
       const response = await fetch(`${LLM_API_URL}/chat/completions`, {
@@ -29,9 +80,14 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
         body: JSON.stringify({
           model: 'agnes-2.0-flash',
           messages,
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: maxTokens,
           stream: true,
+          // Disable the reasoning model's chain-of-thought: it otherwise dumps
+          // everything into reasoning_content (leaving content empty) and burns
+          // the whole token budget thinking, which makes the stream exceed the
+          // timeout. With thinking off, the answer goes straight to content.
+          chat_template_kwargs: { enable_thinking: false },
         }),
         signal: controller.signal,
       });
@@ -64,7 +120,11 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta;
+              // Reasoning models may place the answer in reasoning_content; fall back to it.
+              // Some providers also use `text`.
               if (delta?.content) fullContent += delta.content;
+              else if (delta?.reasoning_content) fullContent += delta.reasoning_content;
+              else if ((delta as { text?: string })?.text) fullContent += (delta as { text?: string }).text!;
             } catch {
               // Ignore malformed lines
             }
@@ -74,6 +134,20 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
       clearTimeout(timer);
 
       if (!fullContent || fullContent.trim().length === 0) {
+        // Streaming returned nothing. The model intermittently streams an empty
+        // body on long prompts; a non-streaming call is far more reliable, so
+        // retry it a few times (and tolerate transient NS errors) before giving up.
+        let ns = '';
+        for (let nsAttempt = 1; nsAttempt <= 3; nsAttempt++) {
+          try {
+            ns = await nonStreamingComplete(messages, maxTokens, timeoutMs);
+          } catch (e) {
+            console.log(`NS fallback attempt ${nsAttempt} threw: ${e instanceof Error ? e.message : String(e)}`);
+            ns = '';
+          }
+          if (ns && ns.trim()) return ns;
+          if (nsAttempt < 3) await new Promise((r) => setTimeout(r, 1500));
+        }
         throw new Error('LLM returned empty content (reasoning consumed all tokens)');
       }
 
@@ -81,8 +155,20 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
     } catch (err) {
       clearTimeout(timer);
       lastError = err instanceof Error ? err : new Error(String(err));
-      const isAbort = lastError.name === 'AbortError';
-      const isTimeout = lastError.message.includes('timeout');
+      // Use controller.signal.aborted / abortedByTimer as the reliable signal:
+      // when we abort with a custom reason, undici may NOT throw an error whose
+      // name is 'AbortError', so relying on lastError.name would silently skip
+      // retries. The flag guarantees timeouts always retry.
+      const isAbort =
+        lastError.name === 'AbortError' ||
+        controller.signal.aborted ||
+        abortedByTimer;
+      const isTimeout =
+        abortedByTimer ||
+        controller.signal.aborted ||
+        lastError.name === 'AbortError' ||
+        lastError.message.toLowerCase().includes('timeout') ||
+        lastError.message.includes('超时');
       const isEmpty = lastError.message.includes('empty content');
 
       if (attempt < maxRetries && (isAbort || isTimeout || isEmpty)) {
@@ -90,11 +176,38 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
         await new Promise(r => setTimeout(r, 2000 * attempt));
         continue;
       }
+      // Surface a friendly, actionable message instead of the raw Undici
+      // "signal is aborted without reason" error.
+      if (isAbort || isTimeout) {
+        throw new Error(`LLM 请求超时，已重试 ${maxRetries} 次仍失败，请稍后重试`);
+      }
       throw lastError;
     }
   }
 
   throw lastError ?? new Error('LLM call failed after all retries');
+}
+
+// ─── Call LLM and parse JSON with retries ────────────────────────────────────
+
+async function callAndParse<T>(
+  messages: ChatMessage[],
+  parse: (raw: string) => T,
+  opts?: { maxTokens?: number; timeoutMs?: number; retries?: number },
+): Promise<T> {
+  const maxRetries = opts?.retries ?? 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const raw = await callLLM(messages, opts);
+    try {
+      return parse(raw);
+    } catch (err) {
+      lastError = err;
+      console.log(`JSON parse attempt ${attempt}/${maxRetries} failed: ${err instanceof Error ? err.message : String(err)}. Retrying...`);
+      if (attempt < maxRetries) await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
+  }
+  throw lastError ?? new Error('JSON parse failed after all retries');
 }
 
 // ─── Robust JSON extraction ──────────────────────────────────────────────────
@@ -187,15 +300,14 @@ export async function analyzeContent(userInput: string): Promise<ContentAnalysis
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<ContentAnalysis>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userInput },
     ],
-    { maxTokens: 2048, timeoutMs: 60_000, retries: 3 },
+    extractJSON<ContentAnalysis>,
+    { maxTokens: 4096, timeoutMs: 120_000, retries: 3 },
   );
-
-  return extractJSON<ContentAnalysis>(result);
 }
 
 // ─── Step 2: Generate Structured Content ──────────────────────────────────────
@@ -241,15 +353,14 @@ Rules:
 
 Return ONLY the JSON object, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<StructuredContent>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nContent:\n${userInput}` },
     ],
-    { maxTokens: 4096, timeoutMs: 90_000, retries: 3 },
+    extractJSON<StructuredContent>,
+    { maxTokens: 4096, timeoutMs: 120_000, retries: 3 },
   );
-
-  return extractJSON<StructuredContent>(result);
 }
 
 // ─── Step 3: Recommend Combinations ───────────────────────────────────────────
@@ -288,15 +399,14 @@ Consider: data structure to matching layout, content tone to matching style, aud
 
 Return ONLY the JSON array, no markdown fences.`;
 
-  const result = await callLLM(
+  return callAndParse<LayoutStyleCombo[]>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Analysis:\n${JSON.stringify(analysis, null, 2)}\n\nStructured content:\n${JSON.stringify(structured, null, 2)}` },
     ],
-    { maxTokens: 4096, timeoutMs: 90_000, retries: 3 },
+    extractJSON<LayoutStyleCombo[]>,
+    { maxTokens: 4096, timeoutMs: 120_000, retries: 3 },
   );
-
-  return extractJSON<LayoutStyleCombo[]>(result);
 }
 
 // ─── Step 5: Generate Final Prompt ────────────────────────────────────────────

@@ -67,11 +67,9 @@ ai-image-studio/
 # .env.local
 AGNES_API_KEY=sk-your-agnes-api-key
 AGNES_API_BASE_URL=https://apihub.agnes-ai.com/v1
-
-# 漫画 / インフォグラフィック構成用 LLM（OpenAI 互換）
-LLM_API_URL=https://your-llm-endpoint/v1
-LLM_API_KEY=sk-your-llm-api-key
 ```
+
+画像生成（テキスト-to-画像 / 画像-to-画像）と、漫画・インフォグラフィックの構成生成（LLM）は**いずれも上記の Agnes エンドポイントのみ**で動作します。それ以外の API キーは不要です。
 
 ## 起動方法
 

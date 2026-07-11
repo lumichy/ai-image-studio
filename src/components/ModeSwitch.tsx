@@ -1,6 +1,7 @@
 'use client';
 
 import { GenerateMode } from '@/types';
+import { useI18n } from '@/lib/i18n-context';
 
 interface ModeSwitchProps {
   mode: GenerateMode;
@@ -15,11 +16,12 @@ const MODE_ICONS: Record<GenerateMode, string> = {
 };
 
 export default function ModeSwitch({ mode, onChange }: ModeSwitchProps) {
+  const { t } = useI18n();
   const modes: { id: GenerateMode; label: string }[] = [
-    { id: 'text-to-image', label: '文生图' },
-    { id: 'image-to-image', label: '图生图' },
-    { id: 'infographic', label: '信息图' },
-    { id: 'comic', label: '知识漫画' },
+    { id: 'text-to-image', label: t('mode.text-to-image') },
+    { id: 'image-to-image', label: t('mode.image-to-image') },
+    { id: 'infographic', label: t('mode.infographic') },
+    { id: 'comic', label: t('mode.comic') },
   ];
 
   return (

@@ -1,39 +1,44 @@
 'use client';
 
-interface LayoutSelectorProps {
-  selected: string;
-  onChange: (id: string) => void;
+import { useI18n } from '@/lib/i18n-context';
+import { TranslationKey } from '@/lib/i18n';
+
+interface LayoutDef {
+  id: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
 }
 
-const LAYOUTS = [
-  { id: '__recommend__', label: '请你推荐', desc: 'AI 智能匹配' },
-  { id: 'bento-grid', label: '便当网格', desc: '多主题概览' },
-  { id: 'linear-progression', label: '线性递进', desc: '时间线/流程' },
-  { id: 'binary-comparison', label: '二元对比', desc: 'A vs B' },
-  { id: 'comparison-matrix', label: '对比矩阵', desc: '多因素对比' },
-  { id: 'hierarchical-layers', label: '层级金字塔', desc: '优先级' },
-  { id: 'tree-branching', label: '树形分支', desc: '分类/谱系' },
-  { id: 'hub-spoke', label: '中心辐射', desc: '中心+关联' },
-  { id: 'structural-breakdown', label: '结构拆解', desc: '剖面/拆解' },
-  { id: 'iceberg', label: '冰山模型', desc: '表面vs隐藏' },
-  { id: 'bridge', label: '桥梁', desc: '问题-方案' },
-  { id: 'funnel', label: '漏斗', desc: '转化/过滤' },
-  { id: 'isometric-map', label: '等距地图', desc: '空间关系' },
-  { id: 'dashboard', label: '仪表盘', desc: '指标/KPI' },
-  { id: 'periodic-table', label: '周期表', desc: '分类集合' },
-  { id: 'comic-strip', label: '连环画', desc: '叙事/序列' },
-  { id: 'story-mountain', label: '故事山', desc: '情节弧' },
-  { id: 'jigsaw', label: '拼图', desc: '互联部分' },
-  { id: 'venn-diagram', label: '韦恩图', desc: '重叠概念' },
-  { id: 'winding-roadmap', label: '蜿蜒路线', desc: '旅程' },
-  { id: 'circular-flow', label: '循环流程', desc: '周期循环' },
-  { id: 'dense-modules', label: '高密度模块', desc: '数据丰富' },
+const LAYOUTS: LayoutDef[] = [
+  { id: '__recommend__', labelKey: 'recommend.label', descKey: 'recommend.desc' },
+  { id: 'bento-grid', labelKey: 'info.layout.bento-grid', descKey: 'info.layout.bento-grid.desc' },
+  { id: 'linear-progression', labelKey: 'info.layout.linear-progression', descKey: 'info.layout.linear-progression.desc' },
+  { id: 'binary-comparison', labelKey: 'info.layout.binary-comparison', descKey: 'info.layout.binary-comparison.desc' },
+  { id: 'comparison-matrix', labelKey: 'info.layout.comparison-matrix', descKey: 'info.layout.comparison-matrix.desc' },
+  { id: 'hierarchical-layers', labelKey: 'info.layout.hierarchical-layers', descKey: 'info.layout.hierarchical-layers.desc' },
+  { id: 'tree-branching', labelKey: 'info.layout.tree-branching', descKey: 'info.layout.tree-branching.desc' },
+  { id: 'hub-spoke', labelKey: 'info.layout.hub-spoke', descKey: 'info.layout.hub-spoke.desc' },
+  { id: 'structural-breakdown', labelKey: 'info.layout.structural-breakdown', descKey: 'info.layout.structural-breakdown.desc' },
+  { id: 'iceberg', labelKey: 'info.layout.iceberg', descKey: 'info.layout.iceberg.desc' },
+  { id: 'bridge', labelKey: 'info.layout.bridge', descKey: 'info.layout.bridge.desc' },
+  { id: 'funnel', labelKey: 'info.layout.funnel', descKey: 'info.layout.funnel.desc' },
+  { id: 'isometric-map', labelKey: 'info.layout.isometric-map', descKey: 'info.layout.isometric-map.desc' },
+  { id: 'dashboard', labelKey: 'info.layout.dashboard', descKey: 'info.layout.dashboard.desc' },
+  { id: 'periodic-table', labelKey: 'info.layout.periodic-table', descKey: 'info.layout.periodic-table.desc' },
+  { id: 'comic-strip', labelKey: 'info.layout.comic-strip', descKey: 'info.layout.comic-strip.desc' },
+  { id: 'story-mountain', labelKey: 'info.layout.story-mountain', descKey: 'info.layout.story-mountain.desc' },
+  { id: 'jigsaw', labelKey: 'info.layout.jigsaw', descKey: 'info.layout.jigsaw.desc' },
+  { id: 'venn-diagram', labelKey: 'info.layout.venn-diagram', descKey: 'info.layout.venn-diagram.desc' },
+  { id: 'winding-roadmap', labelKey: 'info.layout.winding-roadmap', descKey: 'info.layout.winding-roadmap.desc' },
+  { id: 'circular-flow', labelKey: 'info.layout.circular-flow', descKey: 'info.layout.circular-flow.desc' },
+  { id: 'dense-modules', labelKey: 'info.layout.dense-modules', descKey: 'info.layout.dense-modules.desc' },
 ];
 
-export default function LayoutSelector({ selected, onChange }: LayoutSelectorProps) {
+export default function LayoutSelector({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
+  const { t } = useI18n();
   return (
     <div>
-      <label className="field-label">布局</label>
+      <label className="field-label">{t('infographic.layout.label')}</label>
       <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
         {LAYOUTS.map((layout, i) => (
           <button
@@ -43,11 +48,11 @@ export default function LayoutSelector({ selected, onChange }: LayoutSelectorPro
             }`}
             style={{ animationDelay: `${i * 0.02}s` }}
             onClick={() => onChange(layout.id)}
-            title={layout.desc}
+            title={t(layout.descKey)}
           >
-            <div>{layout.label}</div>
+            <div>{t(layout.labelKey)}</div>
             <div className={`text-[10px] mt-0.5 font-mono ${selected === layout.id ? 'opacity-70' : 'opacity-40'}`}>
-              {layout.desc}
+              {t(layout.descKey)}
             </div>
           </button>
         ))}

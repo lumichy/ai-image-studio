@@ -1,41 +1,46 @@
 'use client';
 
-interface InfoStyleSelectorProps {
-  selected: string;
-  onChange: (id: string) => void;
+import { useI18n } from '@/lib/i18n-context';
+import { TranslationKey } from '@/lib/i18n';
+
+interface StyleDef {
+  id: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
 }
 
-const INFO_STYLES = [
-  { id: '__recommend__', label: '请你推荐', desc: 'AI 智能匹配' },
-  { id: 'craft-handmade', label: '手绘纸艺', desc: '默认' },
-  { id: 'claymation', label: '黏土动画', desc: '3D黏土' },
-  { id: 'kawaii', label: '日系可爱', desc: '粉彩' },
-  { id: 'storybook-watercolor', label: '水彩童话', desc: '柔和' },
-  { id: 'chalkboard', label: '黑板粉笔', desc: '黑板' },
-  { id: 'cyberpunk-neon', label: '赛博朋克', desc: '霓虹' },
-  { id: 'bold-graphic', label: '粗犷图形', desc: '漫画' },
-  { id: 'aged-academia', label: '复古学术', desc: '复古' },
-  { id: 'corporate-memphis', label: '企业扁平', desc: '鲜艳' },
-  { id: 'technical-schematic', label: '技术蓝图', desc: '工程' },
-  { id: 'origami', label: '折纸', desc: '几何' },
-  { id: 'pixel-art', label: '像素艺术', desc: '8位' },
-  { id: 'ui-wireframe', label: '线框图', desc: '灰度' },
-  { id: 'ikea-manual', label: 'IKEA说明', desc: '极简' },
-  { id: 'knolling', label: '整齐排列', desc: '俯拍' },
-  { id: 'lego-brick', label: '乐高积木', desc: '玩具' },
-  { id: 'pop-laboratory', label: '实验室波普', desc: '精准' },
-  { id: 'morandi-journal', label: '莫兰迪手账', desc: '暖色' },
-  { id: 'retro-pop-grid', label: '复古波普', desc: '70年代' },
-  { id: 'hand-drawn-edu', label: '手绘教育', desc: '粉彩' },
-  { id: 'retro-popup-pop', label: '复古弹出', desc: '拼贴' },
+const STYLES: StyleDef[] = [
+  { id: '__recommend__', labelKey: 'recommend.label', descKey: 'recommend.desc' },
+  { id: 'craft-handmade', labelKey: 'info.style.craft-handmade', descKey: 'info.style.craft-handmade.desc' },
+  { id: 'claymation', labelKey: 'info.style.claymation', descKey: 'info.style.claymation.desc' },
+  { id: 'kawaii', labelKey: 'info.style.kawaii', descKey: 'info.style.kawaii.desc' },
+  { id: 'storybook-watercolor', labelKey: 'info.style.storybook-watercolor', descKey: 'info.style.storybook-watercolor.desc' },
+  { id: 'chalkboard', labelKey: 'info.style.chalkboard', descKey: 'info.style.chalkboard.desc' },
+  { id: 'cyberpunk-neon', labelKey: 'info.style.cyberpunk-neon', descKey: 'info.style.cyberpunk-neon.desc' },
+  { id: 'bold-graphic', labelKey: 'info.style.bold-graphic', descKey: 'info.style.bold-graphic.desc' },
+  { id: 'aged-academia', labelKey: 'info.style.aged-academia', descKey: 'info.style.aged-academia.desc' },
+  { id: 'corporate-memphis', labelKey: 'info.style.corporate-memphis', descKey: 'info.style.corporate-memphis.desc' },
+  { id: 'technical-schematic', labelKey: 'info.style.technical-schematic', descKey: 'info.style.technical-schematic.desc' },
+  { id: 'origami', labelKey: 'info.style.origami', descKey: 'info.style.origami.desc' },
+  { id: 'pixel-art', labelKey: 'info.style.pixel-art', descKey: 'info.style.pixel-art.desc' },
+  { id: 'ui-wireframe', labelKey: 'info.style.ui-wireframe', descKey: 'info.style.ui-wireframe.desc' },
+  { id: 'ikea-manual', labelKey: 'info.style.ikea-manual', descKey: 'info.style.ikea-manual.desc' },
+  { id: 'knolling', labelKey: 'info.style.knolling', descKey: 'info.style.knolling.desc' },
+  { id: 'lego-brick', labelKey: 'info.style.lego-brick', descKey: 'info.style.lego-brick.desc' },
+  { id: 'pop-laboratory', labelKey: 'info.style.pop-laboratory', descKey: 'info.style.pop-laboratory.desc' },
+  { id: 'morandi-journal', labelKey: 'info.style.morandi-journal', descKey: 'info.style.morandi-journal.desc' },
+  { id: 'retro-pop-grid', labelKey: 'info.style.retro-pop-grid', descKey: 'info.style.retro-pop-grid.desc' },
+  { id: 'hand-drawn-edu', labelKey: 'info.style.hand-drawn-edu', descKey: 'info.style.hand-drawn-edu.desc' },
+  { id: 'retro-popup-pop', labelKey: 'info.style.retro-popup-pop', descKey: 'info.style.retro-popup-pop.desc' },
 ];
 
-export default function InfoStyleSelector({ selected, onChange }: InfoStyleSelectorProps) {
+export default function InfoStyleSelector({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
+  const { t } = useI18n();
   return (
     <div>
-      <label className="field-label">信息图风格</label>
+      <label className="field-label">{t('infographic.style.label')}</label>
       <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
-        {INFO_STYLES.map((style, i) => (
+        {STYLES.map((style, i) => (
           <button
             key={style.id}
             className={`px-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-250 text-center stagger-in ${
@@ -43,11 +48,11 @@ export default function InfoStyleSelector({ selected, onChange }: InfoStyleSelec
             }`}
             style={{ animationDelay: `${i * 0.02}s` }}
             onClick={() => onChange(style.id)}
-            title={style.desc}
+            title={t(style.descKey)}
           >
-            <div>{style.label}</div>
+            <div>{t(style.labelKey)}</div>
             <div className={`text-[10px] mt-0.5 font-mono ${selected === style.id ? 'opacity-70' : 'opacity-40'}`}>
-              {style.desc}
+              {t(style.descKey)}
             </div>
           </button>
         ))}

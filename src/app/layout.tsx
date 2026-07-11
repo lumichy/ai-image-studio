@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { I18nProvider } from '@/lib/i18n-context';
 
 export const metadata: Metadata = {
-  title: 'AI 生图工作室',
-  description: '基于 Agnes AI 的多模态创意生成工具',
+  title: 'AI Image Studio',
+  description: 'AI-powered creative image generation tool',
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

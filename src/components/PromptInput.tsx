@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/lib/i18n-context';
+
 interface PromptInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -7,13 +9,14 @@ interface PromptInputProps {
 }
 
 export default function PromptInput({ value, onChange, placeholder }: PromptInputProps) {
+  const { t } = useI18n();
   return (
     <div>
-      <label className="field-label">描述文本</label>
+      <label className="field-label">{t('prompt.label')}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder || "输入你想要生成的图片描述，例如：一只猫坐在窗台上，夕阳的光线穿过窗户洒在它身上"}
+        placeholder={placeholder || t('prompt.placeholder')}
         className="neon-input w-full h-32 px-4 py-3 rounded-xl resize-none text-sm leading-relaxed"
         maxLength={500}
       />

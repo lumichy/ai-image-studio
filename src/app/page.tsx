@@ -10,9 +10,12 @@ import ResultDisplay from '@/components/ResultDisplay';
 import GenerateButton from '@/components/GenerateButton';
 import InfographicFlow from '@/components/InfographicFlow';
 import ComicFlow from '@/components/ComicFlow';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useI18n } from '@/lib/i18n-context';
 import { GenerateMode } from '@/types';
 
 export default function Home() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<GenerateMode>('text-to-image');
 
   const [prompt, setPrompt] = useState('');
@@ -63,13 +66,13 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || '生成失败');
+        throw new Error(data.error || t('error.generate'));
       }
 
       setImageUrl(data.imageUrl);
       setDisplayPrompt(data.fullPrompt || prompt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '生成失败');
+      setError(err instanceof Error ? err.message : t('error.generate'));
     } finally {
       setLoading(false);
     }
@@ -88,19 +91,24 @@ export default function Home() {
     <main className="relative z-10 min-h-screen px-4 py-10 md:py-16">
       {/* ─── Header ─────────────────────────────── */}
       <header className="max-w-6xl mx-auto mb-10 text-center fade-in-up">
-        <div className="inline-flex items-center gap-3 mb-3">
+        <div className="flex items-center justify-center gap-3 mb-3">
           <div className="w-2 h-2 rounded-full bg-emerald-400 glow-pulse" />
-          <span className="text-xs font-mono tracking-widest text-gray-500 uppercase">Agnes AI · Live</span>
+          <span className="text-xs font-mono tracking-widest text-gray-500 uppercase">{t('header.badge')}</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
           <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
-            AI 生图工作室
+            {t('header.title')}
           </span>
         </h1>
         <p className="mt-3 text-sm text-gray-500 font-light tracking-wide">
-          文生图 · 图生图 · 信息图 · 知识漫画
+          {t('header.subtitle')}
         </p>
       </header>
+
+      {/* ─── Language Switcher ─────────────────────── */}
+      <div className="max-w-6xl mx-auto mb-6 flex justify-center fade-in-up">
+        <LanguageSwitcher />
+      </div>
 
       {/* ─── Mode Switch ────────────────────────── */}
       <div className="max-w-6xl mx-auto mb-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
@@ -150,7 +158,7 @@ export default function Home() {
       {/* ─── Footer ────────────────────────────── */}
       <footer className="max-w-6xl mx-auto mt-16 text-center">
         <p className="text-xs text-gray-600 font-mono">
-          Powered by Agnes AI · Built with Next.js
+          {t('footer')}
         </p>
       </footer>
     </main>

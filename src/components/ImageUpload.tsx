@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n-context';
 
 interface ImageUploadProps {
   onUpload: (base64: string) => void;
 }
 
 export default function ImageUpload({ onUpload }: ImageUploadProps) {
+  const { t } = useI18n();
   const [preview, setPreview] = useState<string | null>(null);
 
   const handleFile = (file: File) => {
@@ -21,12 +23,12 @@ export default function ImageUpload({ onUpload }: ImageUploadProps) {
 
   return (
     <div>
-      <label className="field-label">参考图片</label>
+      <label className="field-label">{t('upload.label')}</label>
       {preview ? (
         <div className="relative group">
           <img
             src={preview}
-            alt="参考图预览"
+            alt={t('upload.preview')}
             className="w-full max-h-48 object-contain rounded-xl border border-white/10"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
@@ -37,7 +39,7 @@ export default function ImageUpload({ onUpload }: ImageUploadProps) {
                 onUpload('');
               }}
             >
-              ✕ 移除图片
+              {t('upload.remove')}
             </button>
           </div>
         </div>
@@ -46,7 +48,7 @@ export default function ImageUpload({ onUpload }: ImageUploadProps) {
           <svg className="w-7 h-7 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
-          <span className="text-sm text-gray-500">点击上传参考图片</span>
+          <span className="text-sm text-gray-500">{t('upload.click')}</span>
           <input
             type="file"
             accept="image/*"

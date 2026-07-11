@@ -42,24 +42,55 @@ async function callLLM(messages: ChatMessage[], options?: { maxTokens?: number; 
           messages,
           temperature: 0.7,
           max_tokens: maxTokens,
+          stream: true,
         }),
         signal: controller.signal,
       });
-      clearTimeout(timer);
 
       if (!response.ok) {
         const error = await response.text();
+        clearTimeout(timer);
         throw new Error(`LLM API error: ${response.status} ${error}`);
       }
 
-      const data = await response.json();
-      const content = data.choices[0].message.content as string;
+      if (!response.body) {
+        clearTimeout(timer);
+        throw new Error('LLM API returned no body');
+      }
 
-      if (!content || content.trim().length === 0) {
+      // Stream response — accumulate content deltas
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let chunksReceived = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta;
+              if (delta?.content) fullContent += delta.content;
+              chunksReceived++;
+            } catch {
+              // Ignore malformed lines
+            }
+          }
+        }
+      }
+      clearTimeout(timer);
+
+      if (!fullContent || fullContent.trim().length === 0) {
         throw new Error('LLM returned empty content (reasoning consumed all tokens)');
       }
 
-      return content;
+      return fullContent;
     } catch (err) {
       clearTimeout(timer);
       lastError = err instanceof Error ? err : new Error(String(err));
